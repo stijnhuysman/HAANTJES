@@ -1,0 +1,1470 @@
+<div class="tab-content">
+            <br>
+            <div id="sectionAweg" ng-show="tabSelected=='Alg'" class="ng-hide">
+                <div class="col-lg-12 ">
+                    <div ng-controller="MatchDetailController" class="ng-scope">
+                        <div class="container">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h3 class="ng-binding">
+                                        <span>
+                                            <i>
+                                                <svg class="search__icon">
+                                                    <use href="../image/sprite.svg#icon-location-pin"></use>
+                                                </svg>
+                                            </i>
+                                        </span>Rode Los
+                                    </h3>
+                                </div>
+                                <div class="col-md-12" id="off" ng-show="showOfficial"> <h4 class="ng-binding">Officials: Roland Picavet, Seppe Roels</h4></div>
+                                <div class="col-md-12" id="maps">
+                                    <iframe class="responsive-iframe" style="border: 0" allowfullscreen="" ng-src="https://www.google.com/maps/embed/v1/place?q=9700+Oudenaarde+Rodelos 1+,+Belgie&amp;key=AIzaSyAKvedS92uNSiu31byzY18gFOOSMyxuNFA" src="https://www.google.com/maps/embed/v1/place?q=9700+Oudenaarde+Rodelos 1+,+Belgie&amp;key=AIzaSyAKvedS92uNSiu31byzY18gFOOSMyxuNFA"></iframe>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="sectionBweg" ng-show="tabSelected=='DWF'" class="ng-hide">
+                <div style="text-align: center;" class="ng-binding">
+                    (INJ1621BCA01)
+                    <div class="pin" ng-show="showbuttons">
+                        <input type="text" ng-model="wqM.scorethuis" onkeypress="return event.charCode &gt;= 48 &amp;&amp; event.charCode &lt;= 57" name="thuis" required="" ng-pattern="/^(\d)+$/" min="000" maxlength="3" size="3" id="scorethuis" ng-paste="$event.preventDefault()" ng-disabled="uitslagInvoerenDisabled" class="form-control-static --uitslag ng-pristine ng-untouched ng-empty ng-invalid ng-invalid-required ng-valid-pattern ng-valid-maxlength" disabled="disabled">
+                        -
+                        <input type="text" ng-model="wqM.scoreuit" onkeypress="return event.charCode &gt;= 48 &amp;&amp; event.charCode &lt;= 57" name="uit" required="" ng-pattern="/^(\d)+$/" min="000" maxlength="3" size="3" id="scoreuit" ng-paste="$event.preventDefault()" ng-disabled="uitslagInvoerenDisabled" class="form-control-static --uitslag ng-pristine ng-untouched ng-empty ng-invalid ng-invalid-required ng-valid-pattern ng-valid-maxlength" disabled="disabled"><br><br>
+                    </div>
+                    <div class="pin ng-hide" ng-show="showbuttons &amp;&amp; !uitslagInvoerenDisabled">pincode</div>
+                    <div class="pin">
+                        <input type="text" ng-model="wqM.pin" name="code" required="" ng-pattern="/^(\w)+$/" min="0000" maxlength="4" size="4" id="pin" ng-show="showbuttons &amp;&amp; !uitslagInvoerenDisabled" ng-disabled="uitslagInvoerenDisabled" class="form-control-static --uitslag ng-pristine ng-untouched ng-empty ng-invalid ng-invalid-required ng-valid-pattern ng-valid-maxlength ng-hide" disabled="disabled">
+                    </div>
+                    <div class="ng-binding">
+                        
+                    </div>
+                    <button ng-click="putUitslag()" ng-show="showbuttons" ng-disabled="uitslagInvoerenDisabled" type="button" class="btn btn-WQ" style="margin: 1rem" disabled="disabled">Opslaan</button>
+                    <button ng-click="go2DWF('dwf')" type="button" class="btn btn-lg vbl-orange">Dwf</button>
+                    <br>
+                    <div class="alert-info" style="padding:1.5rem 0">Gebruik DWF alleen in de normale browsermode!!!, Dit voorkomt dat er gegevens verloren kunnen gaan.</div>
+                    <button ng-show="showUrlBetaBtn" ng-click="go2DWF('beta')" type="button" class="btn btn-lg ng-hide">(DWF beta)</button>
+
+                </div>
+            </div>
+            
+            <div id="sectionCweg" ng-show="tabSelected=='TT'" class="ng-hide">
+                <div id="Geeninzagrecht" ng-show="!verslagIsPublic" class="ng-hide">
+                    <br>
+                    Geen recht op inzage. Niet ingelogd of niet aangesloten bij club thuis en/of bezoekers!
+                    <br><br>
+                </div>
+                <table class="table table-bordered table-hover table-striped">
+                    <thead>
+                        <tr class="info noCursor">
+                            <th>
+                                <svg class="icon--icon-white">
+                                    <use href="../image/sprite.svg#icon-edit"></use>
+                                </svg>
+                            </th>
+                            <th ng-show="authorized4Match" class="">
+                                <svg class="icon--icon-white noCursor">
+                                    <use href="../image/sprite.svg#icon-info"></use>
+                                </svg>
+                            </th>
+                            <th class="noCursor">Rugnrs</th>
+                            <th class="noCursor">Categorie</th>
+                            <th class="noCursor">
+                                <svg class="icon--icon-white ">
+                                    <use href="../image/sprite.svg#icon-gender-alt"></use>
+                                </svg>Naam
+                            </th>
+                            
+                            <th class="noCursor">
+                                <svg style="width: 2.5rem; height:2.5rem" class="icon--icon-white  ">
+                                    <use href="../image/sprite.svg#icon-trash"></use>
+                                </svg>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','resetSpelers')" style="padding: 0.5rem;background: transparent;  border-style: solid;
+                                                                                                border-color: white; " class="">
+                                        <i>
+                                            <svg class=" icon-reset_tv">
+                                                <use href="../image/sprite.svg#icon-reset_tv"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('T','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">4</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Jonah Cattoir</td>
+                            
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('T','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">5</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Viktor L'Hommelet</td>
+                            
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('T','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">6</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Niels De Coussemaker</td>
+                            
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('T','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">7</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Tibo Despriet</td>
+                            
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('T','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">8</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Vic Huysman</td>
+                            
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('T','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">10</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Gust Ottevaere</td>
+                            
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('T','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">11</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Jasper Espeel</td>
+                            
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('T','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">12</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Marcel Heerman</td>
+                            
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('T','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">15</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Torre Beeckman</td>
+                            
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis |isSpelerOrBeg:0 -->
+                        <tr>
+                            <td ng-show="authorized4Match" class=""></td>
+                            <td></td>
+                            <td></td>
+                            <td>
+                                <button type="button" ng-click="MainFormModal('T','AddSpeler')">
+                                    <i>
+                                        <svg class="icon">
+                                            <use href="../image/sprite.svg#icon-add-user"></use>
+                                        </svg>
+                                    </i>
+                                </button>
+                            </td>
+                            
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        <tr style="background: grey"><td></td><td></td><td></td><td></td><td></td><td ng-show="authorized4Match" class=""></td></tr>
+                        <!-- ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:1">
+                            <td ng-show="authorized4Match"></td>
+                            <td ng-show="deelnemer.Functie=='C'">Coach</td>
+                            <td ng-show="deelnemer.Functie=='A'" class="ng-hide">Ass. Coach</td>
+                            <td ng-show="deelnemer.Functie=='D'" class="ng-hide">Gedelegeerde</td>
+                            <td class="ng-binding">17-11-1983 (HSE)</td>
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''" class="ng-binding">Bart Cattoir</td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''" class="ng-hide">
+                                <button type="button" class="" ng-click="MainFormModal('T','AddBegeleider',deelnemer)">
+                                    <i>
+                                        <svg class="icon">
+                                            <use href="../image/sprite.svg#icon-add-user"></use>
+                                        </svg>
+                                    </i>
+                                </button>
+                            </td>
+                            
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''">
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','DeleteBegeleider', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                &lt;<use href="../image/sprite.svg#icon-trash">"&gt;</use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''" class="ng-hide"></td>
+                            <td></td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:1">
+                            <td ng-show="authorized4Match"></td>
+                            <td ng-show="deelnemer.Functie=='C'" class="ng-hide">Coach</td>
+                            <td ng-show="deelnemer.Functie=='A'">Ass. Coach</td>
+                            <td ng-show="deelnemer.Functie=='D'" class="ng-hide">Gedelegeerde</td>
+                            <td class="ng-binding"></td>
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''" class="ng-binding ng-hide"></td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''">
+                                <button type="button" class="" ng-click="MainFormModal('T','AddBegeleider',deelnemer)">
+                                    <i>
+                                        <svg class="icon">
+                                            <use href="../image/sprite.svg#icon-add-user"></use>
+                                        </svg>
+                                    </i>
+                                </button>
+                            </td>
+                            
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''" class="ng-hide">
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','DeleteBegeleider', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                &lt;<use href="../image/sprite.svg#icon-trash">"&gt;</use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''"></td>
+                            <td></td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:1">
+                            <td ng-show="authorized4Match"></td>
+                            <td ng-show="deelnemer.Functie=='C'" class="ng-hide">Coach</td>
+                            <td ng-show="deelnemer.Functie=='A'" class="ng-hide">Ass. Coach</td>
+                            <td ng-show="deelnemer.Functie=='D'">Gedelegeerde</td>
+                            <td class="ng-binding">28-02-1979</td>
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''" class="ng-binding">Kristien Van De Velde</td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''" class="ng-hide">
+                                <button type="button" class="" ng-click="MainFormModal('T','AddBegeleider',deelnemer)">
+                                    <i>
+                                        <svg class="icon">
+                                            <use href="../image/sprite.svg#icon-add-user"></use>
+                                        </svg>
+                                    </i>
+                                </button>
+                            </td>
+                            
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''">
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('T','DeleteBegeleider', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                &lt;<use href="../image/sprite.svg#icon-trash">"&gt;</use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''" class="ng-hide"></td>
+                            <td></td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:1 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="sectionDweg" ng-show="tabSelected=='TU'" class="">
+                <div id="Geeninzagrecht" ng-show="!verslagIsPublic" class="ng-hide">
+                    <br>
+                    Geen recht op inzage. Niet ingelogd of niet aangesloten bij club thuis en/of bezoekers!
+                    <br><br>
+                </div>
+                <table class="table table-bordered table-hover table-striped">
+                    <thead>
+                        <tr class="info noCursor">
+                            <th>
+                                <svg class="icon--icon-white">
+                                    <use href="../image/sprite.svg#icon-edit"></use>
+                                </svg>
+                            </th>
+                            <th ng-show="authorized4Match" class="">
+                                <svg class="icon--icon-white noCursor">
+                                    <use href="../image/sprite.svg#icon-info"></use>
+                                </svg>
+                            </th>
+                            <th class="noCursor">Rugnrs</th>
+                            <th class="noCursor">Categorie</th>
+                            <th class="noCursor">
+                                <svg class="icon--icon-white ">
+                                    <use href="../image/sprite.svg#icon-gender-alt"></use>
+                                </svg>Naam
+                            </th>
+                            
+                            <th class="noCursor">
+                                <svg style="width: 2.5rem; height:2.5rem" class="icon--icon-white  ">
+                                    <use href="../image/sprite.svg#icon-trash"></use>
+                                </svg>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','resetSpelers')" style="padding: 0.5rem;background: transparent;  border-style: solid;
+                                                                                                border-color: white; " class="">
+                                        <i>
+                                            <svg class=" icon-reset_tv">
+                                                <use href="../image/sprite.svg#icon-reset_tv"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">4</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Richard Baert</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">5</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Isaac Vandierendonck</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">6</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Kas Lecluyse</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">7</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Daan Jongbloet</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">8</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Arthur Van De Walle</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">9</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Ewoud Vindevogel</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">10</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Obe Van der Heggen</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">11</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Jolan Allegaert</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">12</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Arthur Loyson</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info "><small class="ng-binding">Max 2</small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">13</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Jan Bikele</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">14</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Pepijn Raes</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit |isSpelerOrBeg:0">
+                            <td>
+                                <span>
+                                    <button type="button" class="" ng-click="MainFormModal('U','ModiSpeler',deelnemer)">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-edit"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="authorized4Match">
+                                <span ng-show="deelnemer.Fouten!= 'null'  &amp;&amp; deelnemer.Fouten!=null &amp;&amp; deelnemer.Fouten!=''" class="badge label-info  ng-hide"><small class="ng-binding"></small></span>
+                            </td>
+                            <td>
+                                <span>
+                                    <svg class="shirt_color_icon-black">
+                                        <use href="../image/sprite.svg#icon-icon-shirt"></use>
+                                        <text x="50%" y="50%" fill="white" dominant-baseline="central" text-anchor="middle">15</text>
+                                    </svg>
+                                    <i ng-show="deelnemer.RolAanv=='Y'" class="ng-hide"> Cap</i>
+                                </span>
+                            </td>
+                            <td class="ng-binding"> (J16)</td>
+                            <td class="ng-binding">Leon Calleeuw</td>
+
+                            
+
+                            <td>
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','RemSpeler', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit |isSpelerOrBeg:0 -->
+                        <tr>
+                            <td ng-show="authorized4Match" class=""></td>
+                            <td></td>
+                            <td></td>
+                            <td>
+                                <button type="button" ng-click="MainFormModal('U','AddSpeler')">
+                                    <i>
+                                        <svg class="icon">
+                                            <use href="../image/sprite.svg#icon-add-user"></use>
+                                        </svg>
+                                    </i>
+                                </button>
+                            </td>
+                            
+                            <td></td>
+                            <td></td>
+
+                        </tr>
+                        <tr style="background: grey"><td></td><td></td><td></td><td></td><td></td><td ng-show="authorized4Match" class=""></td></tr>
+                        <!-- ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:1">
+                            <td ng-show="authorized4Match"></td>
+                            <td ng-show="deelnemer.Functie=='C'">Coach</td>
+                            <td ng-show="deelnemer.Functie=='A'" class="ng-hide">Ass. Coach</td>
+                            <td ng-show="deelnemer.Functie=='D'" class="ng-hide">Gedelegeerde</td>
+                            <td class="ng-binding">17-06-1962</td>
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''" class="ng-binding">Patrick Heyse</td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''" class="ng-hide">
+                                <button type="button" class="" ng-click="MainFormModal('U','AddBegeleider',deelnemer)">
+                                    <i>
+                                        <svg class="icon">
+                                            <use href="../image/sprite.svg#icon-add-user"></use>
+                                        </svg>
+                                    </i>
+                                </button>
+                            </td>
+                            
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''">
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','DeleteBegeleider', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''" class="ng-hide"></td>
+                            <td></td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:1">
+                            <td ng-show="authorized4Match"></td>
+                            <td ng-show="deelnemer.Functie=='C'" class="ng-hide">Coach</td>
+                            <td ng-show="deelnemer.Functie=='A'">Ass. Coach</td>
+                            <td ng-show="deelnemer.Functie=='D'" class="ng-hide">Gedelegeerde</td>
+                            <td class="ng-binding"></td>
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''" class="ng-binding ng-hide"></td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''">
+                                <button type="button" class="" ng-click="MainFormModal('U','AddBegeleider',deelnemer)">
+                                    <i>
+                                        <svg class="icon">
+                                            <use href="../image/sprite.svg#icon-add-user"></use>
+                                        </svg>
+                                    </i>
+                                </button>
+                            </td>
+                            
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''" class="ng-hide">
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','DeleteBegeleider', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''"></td>
+                            <td></td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:1">
+                            <td ng-show="authorized4Match"></td>
+                            <td ng-show="deelnemer.Functie=='C'" class="ng-hide">Coach</td>
+                            <td ng-show="deelnemer.Functie=='A'" class="ng-hide">Ass. Coach</td>
+                            <td ng-show="deelnemer.Functie=='D'">Gedelegeerde</td>
+                            <td class="ng-binding">12-09-1980</td>
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''" class="ng-binding">Stef Allegaert</td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''" class="ng-hide">
+                                <button type="button" class="" ng-click="MainFormModal('U','AddBegeleider',deelnemer)">
+                                    <i>
+                                        <svg class="icon">
+                                            <use href="../image/sprite.svg#icon-add-user"></use>
+                                        </svg>
+                                    </i>
+                                </button>
+                            </td>
+                            
+                            <td ng-show="deelnemer.RelGUID!=null &amp;&amp; deelnemer.RelGUID!=''">
+                                <span>
+                                    <button type="button" ng-click="MainFormModal('U','DeleteBegeleider', deelnemer)" class="">
+                                        <i>
+                                            <svg class="icon">
+                                                <use href="../image/sprite.svg#icon-trash"></use>
+                                            </svg>
+                                        </i>
+                                    </button>
+                                </span>
+                            </td>
+                            <td ng-show="deelnemer.RelGUID==null || deelnemer.RelGUID==''" class="ng-hide"></td>
+                            <td></td>
+                        </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:1 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="sectionEweg" ng-show="tabSelected=='OF'" class="ng-hide">
+                <table class="table table-bordered table-hover table-striped">
+                    <thead class="">
+                        <tr class="info noCursor">
+                            <th>
+                                <svg class="icon--icon-white">
+                                    <use href="../image/sprite.svg#icon-official"></use>
+                                </svg>
+                            </th>
+                            <th>Naam</th>
+                            <th ng-show="authorized4Match" class="">Reiskosten</th>
+                            <th ng-show="authorized4Match" class="">Vergoeding</th>
+                            <th ng-show="authorized4Match" class="">
+                                <svg class="icon--icon-white">
+                                    <use href="../image/sprite.svg#icon-edit"></use>
+                                </svg>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- ngRepeat: off in Offs -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="sectionFweg" ng-show="tabSelected=='VS'" class="ng-hide">
+                <div class="supportinfobox">
+                    <button aria-label="maak verslag" ng-click="makePdf()" type="button" class="btn btn-primary-inverse">Maak (uitgebreid) verslag</button>
+                    
+                    <!-- ngIf: dwfVerslagMember -->
+                </div>
+                <div id="columnWedInfo" class="columnWedInfo">
+                    <div id="Geeninzagrecht" ng-show="!verslagIsPublic" class="ng-hide">
+                        <br>
+                        Geen recht op inzage. Niet ingelogd of niet aangesloten bij club thuis en/of bezoekers!
+                        <br><br>
+                    </div>
+                    <div ng-show="dwfVerslagMember" class="ng-hide">
+                        <!-- ngIf: showSupportInfo -->
+                    </div>
+                    <div ng-show="verslagIsPublic" class="">
+                        <div id="statistieken" class="statistieken">
+                            <div id="TT" class="columnT">
+                                <div id="teamthuis">
+                                    <div class="testparent">
+                                        <div class="">
+                                            <img alt="uitclublogo" class="img-responsive" err-src="/image/NoLogo.png" ng-src="https://vbl.wisseq.eu/vbldataOrganisation/BVBL1037_Small.jpg" src="https://vbl.wisseq.eu/vbldataOrganisation/BVBL1037_Small.jpg">
+                                        </div>
+                                        <div ng-mouseover="ShowfullTeamName(truncTeamThuisNaam)" ng-mouseleave="ShowTruncTeamName(truncTeamThuisNaam)" style="margin: 15px">
+                                            <h3 class="white ng-binding">BBC Haantjes Certifisc Oudenaarde J16...</h3>
+                                        </div>
+                                        <div class="badge vbl-black">
+                                            <h1 class="ng-binding"></h1>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <table class="table table-bordered table-hover table-striped">
+                                            <thead>
+                                                <tr class="vbl-orange">
+                                                    <th>Periode</th>
+                                                    <th>Time Out</th>
+                                                    <!-- ngIf: dwfPdf!='U08' --><th ng-if="dwfPdf!='U08'" class="ng-scope">Fouten</th><!-- end ngIf: dwfPdf!='U08' -->
+                                                    <!-- ngIf: dwfPdf!='U08' --><th ng-if="dwfPdf!='U08'" class="ng-scope">Punten</th><!-- end ngIf: dwfPdf!='U08' -->
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- ngRepeat: totalenTt in tInfo -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div>
+                                        <table class="table table-bordered table-hover table-striped">
+                                            <thead>
+                                                <tr class="vbl-orange noCursor">
+                                                    <th>Rnr</th>
+                                                    <th>Naam</th>
+                                                    <th></th>
+                                                    <th ng-show="dwfPdfShowScore" class="">Score</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">4</td>
+                                                    <td class="ng-binding">Jonah Cattoir</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">5</td>
+                                                    <td class="ng-binding">Viktor L'Hommelet</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">6</td>
+                                                    <td class="ng-binding">Niels De Coussemaker</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">7</td>
+                                                    <td class="ng-binding">Tibo Despriet</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">8</td>
+                                                    <td class="ng-binding">Vic Huysman</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">10</td>
+                                                    <td class="ng-binding">Gust Ottevaere</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">11</td>
+                                                    <td class="ng-binding">Jasper Espeel</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">12</td>
+                                                    <td class="ng-binding">Marcel Heerman</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">15</td>
+                                                    <td class="ng-binding">Torre Beeckman</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:0 -->
+                                                <!-- ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:1">
+                                                    <td class="ng-binding">C</td>
+                                                    <td class="ng-binding">Bart Cattoir</td>
+                                                    <td></td>
+                                            </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:1">
+                                                    <td class="ng-binding">A</td>
+                                                    <td class="ng-binding"></td>
+                                                    <td></td>
+                                            </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tthuis|isSpelerOrBeg:1">
+                                                    <td class="ng-binding">D</td>
+                                                    <td class="ng-binding">Kristien Van De Velde</td>
+                                                    <td></td>
+                                            </tr><!-- end ngRepeat:  deelnemer in Tthuis|isSpelerOrBeg:1 --></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div id="TU" class="columnU">
+                                <div id="teamUit">
+                                    <div class="testparent">
+                                        <div class="clublogo">
+                                            <img alt="clublogo uit" class="img-responsive" err-src="/image/NoLogo.png" ng-src="https://vbl.wisseq.eu/vbldataOrganisation/BVBL1042_Small.jpg" src="https://vbl.wisseq.eu/vbldataOrganisation/BVBL1042_Small.jpg">
+                                        </div>
+                                        <div ng-mouseover="ShowfullTeamName(truncTeamUitNaam)" ng-mouseleave="ShowTruncTeamName(truncTeamUitNaam)" style="margin: 15px">
+                                            <h3 class="white ng-binding">BC Lamett Deerlijk-Zwevegem J16 A</h3>
+                                        </div>
+                                        <div class="badge vbl-black">
+                                            <h1 class="ng-binding"></h1>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <table class="table table-bordered table-hover table-striped">
+                                            <thead>
+                                                <tr class="vbl-blue">
+                                                    <th>Periode</th>
+                                                    <th>Time Out</th>
+                                                    <th>Fouten</th>
+                                                    <th>Punten</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- ngRepeat: totalenTu in uInfo -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div>
+                                        <table class="table table-bordered table-hover table-striped">
+                                            <thead>
+                                                <tr class="vbl-blue noCursor">
+                                                    <th>Rnr</th>
+                                                    <th>Naam</th>
+                                                    <th></th>
+                                                    <th ng-show="dwfPdfShowScore" class="">Score</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">4 </td>
+                                                    <td class="ng-binding">Richard Baert</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">5 </td>
+                                                    <td class="ng-binding">Isaac Vandierendonck</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">6 </td>
+                                                    <td class="ng-binding">Kas Lecluyse</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">7 </td>
+                                                    <td class="ng-binding">Daan Jongbloet</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">8 </td>
+                                                    <td class="ng-binding">Arthur Van De Walle</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">9 </td>
+                                                    <td class="ng-binding">Ewoud Vindevogel</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">10 </td>
+                                                    <td class="ng-binding">Obe Van der Heggen</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">11 </td>
+                                                    <td class="ng-binding">Jolan Allegaert</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">12 </td>
+                                                    <td class="ng-binding">Arthur Loyson</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">13 </td>
+                                                    <td class="ng-binding">Jan Bikele</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">14 </td>
+                                                    <td class="ng-binding">Pepijn Raes</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 --><tr style="color:white" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:0" class="ng-scope">
+                                                    <td class="ng-binding">15 </td>
+                                                    <td class="ng-binding">Leon Calleeuw</td>
+                                                    <td class="ng-binding">N</td>
+                                                    <td ng-show="dwfPdfShowScore" class="ng-binding"></td>
+                                                </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:0 -->
+                                                <!-- ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:1">
+                                                    <td class="ng-binding">C</td>
+                                                    <td class="ng-binding">Patrick Heyse</td>
+                                                    <td></td>
+                                        </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:1">
+                                                    <td class="ng-binding">A</td>
+                                                    <td class="ng-binding"></td>
+                                                    <td></td>
+                                        </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:1 --><tr class="ng-scope" ng-repeat=" deelnemer in Tuit|isSpelerOrBeg:1">
+                                                    <td class="ng-binding">D</td>
+                                                    <td class="ng-binding">Stef Allegaert</td>
+                                                    <td></td>
+                                        </tr><!-- end ngRepeat:  deelnemer in Tuit|isSpelerOrBeg:1 --></tbody></table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="wedformOffiinfo" class="verloop">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr class="info noCursor">
+                                        <th style="text-align: center">Official</th>
+                                        <th style="text-align: center">Functie</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- ngRepeat: off in Offs  -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>

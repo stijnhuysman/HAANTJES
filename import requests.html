@@ -1,0 +1,24 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+url = "https://app.basketballstatsvlaanderen.be/players/BVBL744354?season=2425"
+response = requests.get(url)
+html_content = response.text
+
+soup = BeautifulSoup(html_content, 'html.parser')
+
+# Find the table by searching for the header text or by inspecting the table's unique attributes
+# If the table has a unique id or class, use it. Otherwise, use the header text.
+table = None
+for tbl in soup.find_all('table'):
+    # Check if the table contains the header "Competitie"
+    if tbl.find('th') and 'Competitie' in tbl.get_text():
+        table = tbl
+        break
+
+if table:
+    df = pd.read_html(str(table))[0]
+    display(df)
+else:
+    print("Could not find the 'Gemiddeldes per competitie' table.")
