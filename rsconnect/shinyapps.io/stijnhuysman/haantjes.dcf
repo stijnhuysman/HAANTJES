@@ -1,0 +1,10 @@
+name: haantjes
+title:
+username: stijnhuysman
+account: stijnhuysman
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15430845
+bundleId: 10896614
+url: https://stijnhuysman.shinyapps.io/haantjes/
+version: 1
