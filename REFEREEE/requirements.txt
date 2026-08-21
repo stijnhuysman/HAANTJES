@@ -1,6 +1,7 @@
 streamlit
 streamlit-calendar
 streamlit-local-storage
+openpyxl
 pandas
 requests
 python-dotenv

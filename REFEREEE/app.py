@@ -15,13 +15,16 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from src import auth, data_loader, theme, vbl_source
+from src import auth, data_loader, roster, theme, vbl_source
 from src.crosscheck import cross_check_referees
 
 load_dotenv()
 
 st.set_page_config(page_title="Haantjes — Refereeing kalender", layout="wide", page_icon="🏀")
 theme.inject_css()
+theme.app_logo()
+theme.inject_pwa()
+theme.bottom_nav(current="overzicht")
 
 CLUB_GUID = os.environ.get("VBL_CLUB_GUID", "BVBL1037")
 OWN_TEAM_PREFIX = os.environ.get("VBL_OWN_TEAM_PREFIX", "BBC Haantjes ")
@@ -40,15 +43,14 @@ except Exception as e:
     calendar = pd.DataFrame()
 
 team_options = sorted(calendar["ownTeamCode"].dropna().unique()) if not calendar.empty else []
-player_name, player_teams = auth.login_gate(team_options)
-
-with st.sidebar:
-    st.header("Filters")
-    if st.button("🔄 Ververs data"):
-        load_vbl_calendar.clear()
-        st.session_state.pop("twizzit_df", None)
+roster_df = roster.load_roster()
+player_name, player_teams = auth.login_gate(roster_df, team_options)
 
 theme.page_header("🏀 Haantjes — Refereeing kalender", f"Ingelogd als {player_name}")
+
+if st.button("🔄 Ververs data"):
+    load_vbl_calendar.clear()
+    st.session_state.pop("twizzit_df", None)
 
 twizzit, twizzit_error = data_loader.get_twizzit_calendar(TWIZZIT_CSV_PATH, OWN_TEAM_PREFIX)
 if twizzit is None:

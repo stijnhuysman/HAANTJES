@@ -5,13 +5,16 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from src import assignments_store, auth, data_loader, theme, vbl_source
+from src import assignments_store, auth, data_loader, roster, theme, vbl_source
 from src.crosscheck import cross_check_referees
 
 load_dotenv()
 
 st.set_page_config(page_title="Rode Los — thuiswedstrijden", layout="wide", page_icon="🏟️")
 theme.inject_css()
+theme.app_logo()
+theme.inject_pwa()
+theme.bottom_nav(current="rode_los")
 
 CLUB_GUID = os.environ.get("VBL_CLUB_GUID", "BVBL1037")
 OWN_TEAM_PREFIX = os.environ.get("VBL_OWN_TEAM_PREFIX", "BBC Haantjes ")
@@ -34,7 +37,8 @@ if calendar.empty:
     st.stop()
 
 team_options = sorted(calendar["ownTeamCode"].dropna().unique())
-player_name, player_teams = auth.login_gate(team_options)
+roster_df = roster.load_roster()
+player_name, player_teams = auth.login_gate(roster_df, team_options)
 
 theme.page_header("🏟️ Rode Los — thuiswedstrijden", f"Ingelogd als {player_name}")
 
