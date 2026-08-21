@@ -1,15 +1,66 @@
-"""Shared visual styling — call inject_css() + app_logo() at the top of every page."""
+"""Shared visual styling and the app's single header bar — call inject_css() at
+the top of every page, then header_bar(player_name, teams) once logged in."""
+import base64
 from pathlib import Path
 
 import streamlit as st
 
 _LOGO_PATH = Path(__file__).resolve().parent.parent / "logo_haantjes.jpg"
+_logo_data_uri_cache = None
 
 
-def app_logo():
-    """Club logo top-left of the app (above the sidebar nav), on every page."""
-    if _LOGO_PATH.exists():
-        st.logo(str(_LOGO_PATH), size="large")
+def logo_data_uri() -> str | None:
+    """Base64 data URI for the club logo — embedded inline so the header row
+    doesn't depend on static-file-serving being correctly configured."""
+    global _logo_data_uri_cache
+    if _logo_data_uri_cache is None and _LOGO_PATH.exists():
+        b64 = base64.b64encode(_LOGO_PATH.read_bytes()).decode("ascii")
+        _logo_data_uri_cache = f"data:image/jpeg;base64,{b64}"
+    return _logo_data_uri_cache
+
+
+def avatar_html(photo_url: str | None, size: int = 64) -> str:
+    if photo_url:
+        return (
+            f'<img src="{photo_url}" style="width:{size}px;height:{size}px;border-radius:50%;'
+            f'object-fit:cover;border:3px solid #1f77b4;display:block;" />'
+        )
+    return (
+        f'<div style="width:{size}px;height:{size}px;border-radius:50%;background:#e8edf3;'
+        f'display:flex;align-items:center;justify-content:center;font-size:{size * 0.45}px;">🙂</div>'
+    )
+
+
+def team_chips_html(teams) -> str:
+    if not teams:
+        return '<span style="color:#c0392b;font-size:0.82rem;">Geen wedstrijden gevonden voor je team(en)</span>'
+    return "".join(
+        f'<span style="display:inline-block;background:#eef4fb;color:#1f77b4;border-radius:999px;'
+        f'padding:0.2rem 0.7rem;font-size:0.78rem;font-weight:600;margin:0.15rem 0.3rem 0 0;">{t}</span>'
+        for t in teams
+    )
+
+
+def header_bar(player_name: str, teams):
+    """The app's single main header: club logo on the left, player name + team
+    chips beside it — one compact row instead of the logo/profile-card/page-title
+    that used to be spread across three separate spots."""
+    logo = logo_data_uri()
+    logo_html = (
+        f'<img src="{logo}" style="width:52px;height:52px;object-fit:contain;flex-shrink:0;" />' if logo else ""
+    )
+    st.markdown(
+        f"""
+        <div style="display:flex; align-items:center; gap:0.7rem; margin: 0.2rem 0 1rem 0; padding-right: 5.5rem;">
+            {logo_html}
+            <div>
+                <div style="font-weight:700; color:#10243e; font-size:1.1rem; line-height:1.2;">{player_name}</div>
+                <div style="margin-top:0.2rem;">{team_chips_html(teams)}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def inject_pwa():
@@ -60,21 +111,26 @@ def inject_pwa():
 
 
 def inject_css():
-    """Always renders the phone-app layout — a fixed, phone-width column with a
-    bottom tab bar — regardless of the viewport/device. There is deliberately no
-    "desktop view": on a wide monitor this just shows the same narrow app column
-    centered on the page, instead of spreading out into a wide sidebar layout."""
+    """Always renders the phone-app layout — a fixed, phone-width column —
+    regardless of the viewport/device. There is deliberately no "desktop view":
+    on a wide monitor this just shows the same narrow app column centered on
+    the page. No sidebar and no Streamlit chrome — header_bar() + st.tabs()
+    are the app's only navigation."""
     st.markdown(
         """
         <style>
+        /* also set on html/body, not just .stApp — otherwise iOS's rubber-band
+           overscroll bounce flashes white behind the app for a frame */
+        html, body { background-color: #f5f6f8; }
         .stApp { background-color: #f5f6f8; }
 
         h1, h2, h3, h4 { font-family: 'Segoe UI', 'Helvetica Neue', sans-serif; }
 
-        /* hide Streamlit's default chrome so this reads as an app, not a data notebook */
+        /* hide all of Streamlit's default chrome — no sidebar toggle needed
+           since there's no sidebar, and this should read as an app, not a
+           data notebook */
         #MainMenu, footer { visibility: hidden; height: 0; }
-
-        /* no sidebar / desktop nav anywhere — the bottom tab bar is the only nav */
+        header[data-testid="stHeader"] { display: none; }
         section[data-testid="stSidebar"],
         [data-testid^="stSidebar"] { display: none !important; }
 
@@ -83,7 +139,7 @@ def inject_css():
         .block-container {
             max-width: 480px;
             margin: 0 auto;
-            padding: 0.75rem 0.7rem 5.75rem 0.7rem;
+            padding: 0.9rem 0.7rem 2rem 0.7rem;
         }
         h1 { font-size: 1.35rem; }
         h2 { font-size: 1.1rem; }
@@ -112,77 +168,20 @@ def inject_css():
 
         /* columns always stack full-width — no side-by-side desktop layout */
         div[data-testid="column"] { width: 100% !important; flex: 1 1 100% !important; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
+        /* tabs: bigger, evenly spaced, thumb-friendly tap targets */
+        button[data-baseweb="tab"] { font-size: 0.85rem; font-weight: 600; padding: 0.6rem 0.4rem; }
 
-NAV_ITEMS = [
-    ("wedstrijden", "pages/2_Mijn_Wedstrijden.py", "Wedstrijdlijst", "🧑‍⚖️"),
-    ("weekends", "pages/3_Weekends.py", "Weekend", "📆"),
-]
-
-
-def bottom_nav(current: str):
-    """Fixed bottom tab bar — the app's only navigation, styled like a real phone
-    app's tab bar: icon stacked above label, and the current tab highlighted (a
-    pill behind icon+label), so it's obvious where you are. `current` is one of
-    NAV_ITEMS' keys ("wedstrijden", "weekends") — each page passes its own so
-    only that tab gets the active styling. Overzicht/Rode Los are intentionally
-    not in NAV_ITEMS (hidden from navigation) — the app files still exist, just
-    not advertised as player-facing destinations."""
-    with st.container(key="bottom_nav"):
-        cols = st.columns(len(NAV_ITEMS))
-        for col, (key, path, label, icon) in zip(cols, NAV_ITEMS):
-            with col:
-                with st.container(key=f"navtab_{key}"):
-                    st.page_link(path, label=label, icon=icon, use_container_width=True)
-
-    st.markdown(
-        f"""
-        <style>
-        .st-key-bottom_nav {{
-            position: fixed; left: 50%; transform: translateX(-50%);
-            bottom: 0; width: 100%; max-width: 480px; z-index: 999;
-            background-color: #10243e;
-            padding: 0.3rem 0.3rem calc(0.3rem + env(safe-area-inset-bottom));
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
-        }}
-        /* the tab row itself must stay horizontal — overrides the app-wide
-           "always stack columns" rule, which only targets normal page content */
-        .st-key-bottom_nav div[data-testid="stHorizontalBlock"] {{ flex-direction: row !important; gap: 0 !important; }}
-        .st-key-bottom_nav div[data-testid="column"] {{ width: auto !important; flex: 1 1 0 !important; }}
-
-        /* icon stacked above the label, centered, like a native tab bar item —
-           target both the stable class and the data-testid, whichever this
-           Streamlit build actually renders */
-        .st-key-bottom_nav .stPageLink,
-        .st-key-bottom_nav a[data-testid="stPageLink"] {{
-            display: flex !important; flex-direction: column !important;
-            align-items: center !important; justify-content: center !important;
-            gap: 0.1rem !important;
-            padding: 0.4rem 0.1rem !important;
-            margin: 0.15rem !important;
-            border-radius: 12px !important;
-            text-decoration: none !important;
-            font-size: 1.15rem !important;
-            line-height: 1.1 !important;
-            transition: background-color 0.15s ease;
-        }}
-        .st-key-bottom_nav .stPageLink p,
-        .st-key-bottom_nav a[data-testid="stPageLink"] p {{
-            color: #b7c3d6 !important; font-size: 0.66rem !important; font-weight: 600 !important; margin: 0.1rem 0 0 0 !important;
-        }}
-        /* active tab — highlighted pill + brand-blue label, so it's obvious where you are */
-        .st-key-navtab_{current} .stPageLink,
-        .st-key-navtab_{current} a[data-testid="stPageLink"] {{
-            background-color: rgba(31, 119, 180, 0.28) !important;
-        }}
-        .st-key-navtab_{current} .stPageLink p,
-        .st-key-navtab_{current} a[data-testid="stPageLink"] p {{
-            color: #ffffff !important;
-        }}
+        /* the tab bar itself stays reachable while scrolling a long card list —
+           the actual navigation, so it's the one thing that stays put (the header
+           above it is just identity info you already know, so it's fine for that
+           to scroll away) */
+        div[data-baseweb="tab-list"] {
+            position: sticky; top: 0; z-index: 100;
+            background-color: #f5f6f8;
+            padding-top: 0.3rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
         </style>
         """,
         unsafe_allow_html=True,
