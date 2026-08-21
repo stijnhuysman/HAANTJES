@@ -1,4 +1,6 @@
 streamlit
+streamlit-calendar
+streamlit-local-storage
 pandas
 requests
 python-dotenv

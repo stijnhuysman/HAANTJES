@@ -5,13 +5,13 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from src import assignments_store, data_loader, vbl_source
+from src import assignments_store, auth, data_loader, theme, vbl_source
 from src.crosscheck import cross_check_referees
 
 load_dotenv()
 
-st.set_page_config(page_title="Rode Los — thuiswedstrijden", layout="wide")
-st.title("🏟️ Rode Los — thuiswedstrijden")
+st.set_page_config(page_title="Rode Los — thuiswedstrijden", layout="wide", page_icon="🏟️")
+theme.inject_css()
 
 CLUB_GUID = os.environ.get("VBL_CLUB_GUID", "BVBL1037")
 OWN_TEAM_PREFIX = os.environ.get("VBL_OWN_TEAM_PREFIX", "BBC Haantjes ")
@@ -32,6 +32,11 @@ except Exception as e:
 if calendar.empty:
     st.info("Geen data geladen.")
     st.stop()
+
+team_options = sorted(calendar["ownTeamCode"].dropna().unique())
+player_name, player_teams = auth.login_gate(team_options)
+
+theme.page_header("🏟️ Rode Los — thuiswedstrijden", f"Ingelogd als {player_name}")
 
 home = calendar[calendar["isHome"]].copy()
 

@@ -1,120 +1,87 @@
 """
-Player self-service: log in with your name + team, see your own matches,
-and volunteer for open referee slots at home games (Rode Los).
+Player self-service: log in with your name + team(s), see a real calendar view
+combining your own matches and open referee slots, click a match to see
+details, and assign/unassign yourself as referee for open ones.
+
+A match needs exactly 2 referees (any mix of official VBL/Twizzit refs and
+volunteers). Once 2 names are attached, the match is no longer choosable —
+you can still see who's assigned, you just can't add a 3rd.
+
+For a more readable weekend-only view, see the "Weekends" page in the sidebar.
 """
 import os
 
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
+from streamlit_calendar import calendar
 
-from src import assignments_store, data_loader, vbl_source
-from src.crosscheck import cross_check_referees
+from src import auth, match_view, theme
 
 load_dotenv()
 
-st.set_page_config(page_title="Mijn wedstrijden", layout="wide")
-st.title("🧑‍⚖️ Mijn wedstrijden")
+st.set_page_config(page_title="Mijn wedstrijden", layout="wide", page_icon="🧑‍⚖️")
+theme.inject_css()
 
 CLUB_GUID = os.environ.get("VBL_CLUB_GUID", "BVBL1037")
 OWN_TEAM_PREFIX = os.environ.get("VBL_OWN_TEAM_PREFIX", "BBC Haantjes ")
 TWIZZIT_CSV_PATH = os.environ.get("TWIZZIT_CSV_PATH", "data/twizzit_export.csv")
 
-
-@st.cache_data(ttl=900)
-def load_vbl_calendar(club_guid: str, own_team_prefix: str) -> pd.DataFrame:
-    return vbl_source.get_club_calendar(club_guid, own_team_prefix)
-
-
 try:
-    calendar = load_vbl_calendar(CLUB_GUID, OWN_TEAM_PREFIX)
+    calendar_df, team_options = match_view.load_context(CLUB_GUID, OWN_TEAM_PREFIX, TWIZZIT_CSV_PATH)
 except Exception as e:
     st.error(f"Kon Basketbal Vlaanderen kalender niet ophalen: {e}")
     st.stop()
 
-if calendar.empty:
+if calendar_df.empty:
     st.info("Geen data geladen.")
     st.stop()
 
-# Resolve official referees (VBL has priority, Twizzit fills gaps) so we know
-# which home games are genuinely still open.
-twizzit, twizzit_error = data_loader.get_twizzit_calendar(TWIZZIT_CSV_PATH, OWN_TEAM_PREFIX)
-if twizzit is not None and not twizzit.empty and not twizzit_error:
-    cross = cross_check_referees(calendar, twizzit)
-    official = cross[["wedguid", "refFinal1"]].rename(columns={"refFinal1": "officialRef"})
-else:
-    official = calendar[["wedguid", "ref1"]].rename(columns={"ref1": "officialRef"})
+player_name, player_teams = auth.login_gate(team_options)
+theme.page_header("🧑‍⚖️ Mijn wedstrijden", f"Ingelogd als {player_name} · {', '.join(player_teams)}")
 
-calendar = calendar.merge(official, on="wedguid", how="left")
+kalender = match_view.build_kalender(calendar_df, player_teams)
 
-st.subheader("Wie ben je?")
-col1, col2 = st.columns(2)
-player_name = col1.text_input("Jouw naam").strip()
-
-team_options = sorted(calendar["ownTeamCode"].dropna().unique())
-player_team = col2.selectbox("Jouw team", [""] + team_options)
-
-if not player_name or not player_team:
-    st.info("Vul je naam en team in om verder te gaan.")
-    st.stop()
-
-st.divider()
-
-# --- Eigen wedstrijden: informational, so the player doesn't double-book ---
-st.subheader(f"📅 Wanneer speelt {player_team} zelf?")
-own_matches = calendar[calendar["ownTeamCode"] == player_team].sort_values("DT")
-st.dataframe(
-    own_matches[["DT", "thuisploeg", "tegenstander", "locatie", "isHome"]],
-    use_container_width=True,
-    hide_index=True,
+st.subheader("📅 Mijn kalender")
+st.caption(
+    "🔵 eigen wedstrijd (info) · 🟢 nog een plaats vrij · 🟠 door jou toegewezen · ⚪ volzet (2 refs) — "
+    "klik op een wedstrijd voor details. Liever enkel zaterdag/zondag, groter en overzichtelijker? "
+    "Ga naar **📆 Weekends** in de zijbalk."
 )
 
-st.divider()
+if kalender.empty:
+    st.info("Geen wedstrijden gevonden voor deze selectie.")
+    st.stop()
 
-# --- Open thuiswedstrijden: home games, not our own team, no official ref yet ---
-st.subheader("🙋 Beschikbare thuiswedstrijden om als scheidsrechter toe te wijzen")
+volunteers, volunteers_by_match = match_view.get_volunteers_by_match()
+events = match_view.build_events(kalender, volunteers_by_match, player_name)
+match_dialog = match_view.make_match_dialog(kalender, volunteers_by_match, player_name, player_teams)
 
-volunteers = assignments_store.get_assignments()
+cal_state = calendar(
+    events=events,
+    options={
+        "initialView": "listMonth",
+        "headerToolbar": {"left": "prev,next today", "center": "title", "right": "listWeek,listMonth,dayGridMonth"},
+        "height": 650,
+        "eventDisplay": "block",
+    },
+    custom_css="""
+        .fc-list-event-title, .fc-list-event-time { font-size: 0.85em; }
+        .fc-list-day-cushion { font-size: 0.9em; padding: 4px 8px; }
+        .fc-list-event:hover td { cursor: pointer; background-color: #f0f0f0; }
+    """,
+    key="ref_calendar",
+)
 
-open_home = calendar[
-    calendar["isHome"]
-    & (calendar["ownTeamCode"] != player_team)
-    & (calendar["officialRef"].fillna("") == "")
-].sort_values("DT")
-
-if volunteers.empty:
-    claimed_by_others = set()
-    my_claims = set()
-else:
-    claimed_by_others = set(volunteers.loc[volunteers["player_name"] != player_name, "match_key"])
-    my_claims = set(volunteers.loc[volunteers["player_name"] == player_name, "match_key"])
-
-open_home = open_home[~open_home["wedguid"].isin(claimed_by_others)].copy()
-open_home["Ik doe deze"] = open_home["wedguid"].isin(my_claims)
-
-if open_home.empty:
-    st.info("Geen open thuiswedstrijden gevonden (buiten je eigen team) op dit moment.")
-else:
-    edited = st.data_editor(
-        open_home[["Ik doe deze", "DT", "thuisploeg", "tegenstander", "reeks", "locatie", "wedguid"]],
-        column_config={"wedguid": None},  # hide raw id, still present in the returned frame
-        disabled=["DT", "thuisploeg", "tegenstander", "reeks", "locatie"],
-        hide_index=True,
-        use_container_width=True,
-        key="open_home_editor",
-    )
-
-    if st.button("✅ Bevestig mijn keuzes"):
-        before = my_claims
-        after = set(edited.loc[edited["Ik doe deze"], "wedguid"])
-
-        for match_key in after - before:
-            assignments_store.assign(match_key, player_name, player_team)
-        for match_key in before - after:
-            assignments_store.unassign(match_key, player_name)
-
-        st.success(f"Bijgewerkt: {len(after - before)} toegevoegd, {len(before - after)} verwijderd.")
-        st.rerun()
+clicked = cal_state.get("eventClick") if cal_state else None
+if clicked:
+    wedguid = clicked["event"]["id"]
+    # only pop the dialog open for a genuinely NEW click — otherwise it would
+    # reopen on every unrelated rerun, since the component keeps returning the
+    # last click it saw even after you've closed the dialog
+    if st.session_state.get("_last_dialog_wedguid") != wedguid:
+        st.session_state["_last_dialog_wedguid"] = wedguid
+        match_dialog(wedguid)
 
 st.divider()
 
@@ -123,7 +90,7 @@ mine = volunteers[volunteers["player_name"] == player_name] if not volunteers.em
 if mine.empty:
     st.caption("Nog geen wedstrijden toegewezen.")
 else:
-    mine_detail = calendar[calendar["wedguid"].isin(mine["match_key"])]
+    mine_detail = calendar_df[calendar_df["wedguid"].isin(mine["match_key"])]
     st.dataframe(
         mine_detail[["DT", "thuisploeg", "tegenstander", "locatie"]].sort_values("DT"),
         use_container_width=True,
