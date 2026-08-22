@@ -78,14 +78,23 @@ def load_vbl_calendar(club_guid: str, own_team_prefix: str) -> pd.DataFrame:
     return vbl_source.get_club_calendar(club_guid, own_team_prefix)
 
 
-def load_context(club_guid: str, own_team_prefix: str, twizzit_csv_path: str):
-    """Returns (calendar_df, team_options): VBL calendar merged with the cross-checked
-    official referee columns (refFinal1/refFinal2), plus the list of own team codes."""
+def load_vbl_only(club_guid: str, own_team_prefix: str):
+    """Returns (calendar_df, team_options) from VBL alone — no Twizzit involved, so
+    this can run before login (team_options is needed by the login screen itself)
+    without ever touching the Twizzit upload widget."""
     calendar_df = load_vbl_calendar(club_guid, own_team_prefix)
     if calendar_df.empty:
         return calendar_df, []
+    team_options = sorted(calendar_df["ownTeamCode"].dropna().unique())
+    return calendar_df, team_options
 
-    twizzit, twizzit_error = data_loader.get_twizzit_calendar(twizzit_csv_path, own_team_prefix)
+
+def merge_twizzit(calendar_df: pd.DataFrame, twizzit_csv_path: str, own_team_prefix: str, allow_upload: bool):
+    """Merges cross-checked official referee columns (refFinal1/refFinal2/refSource)
+    into calendar_df. allow_upload gates the Twizzit file_uploader fallback — only
+    True for the admin login, per the club's request that regular players never
+    see/trigger that upload control."""
+    twizzit, twizzit_error = data_loader.get_twizzit_calendar(twizzit_csv_path, own_team_prefix, allow_upload)
     if twizzit is not None and not twizzit.empty and not twizzit_error:
         cross = cross_check_referees(calendar_df, twizzit)
         official = cross[["wedguid", "refFinal1", "refFinal2", "refSource"]]
@@ -96,10 +105,7 @@ def load_context(club_guid: str, own_team_prefix: str, twizzit_csv_path: str):
             columns={"ref1": "refFinal1", "ref2": "refFinal2"}
         )
         official["refSource"] = "VBL"
-    calendar_df = calendar_df.merge(official, on="wedguid", how="left")
-
-    team_options = sorted(calendar_df["ownTeamCode"].dropna().unique())
-    return calendar_df, team_options
+    return calendar_df.merge(official, on="wedguid", how="left")
 
 
 def build_kalender(calendar_df: pd.DataFrame, player_teams) -> pd.DataFrame:
@@ -229,6 +235,12 @@ def render_match_cards(matches: pd.DataFrame, volunteers_by_match, player_name, 
                     """,
                     unsafe_allow_html=True,
                 )
+                # invisible overlay button (styled via div[class*="st-key-title_"] at
+                # page level) — clicking the title text itself also opens the dialog
+                if st.button(
+                    f"{row['thuisploeg']} - {row['tegenstander']}", key=f"title_{key_prefix}{row['wedguid']}"
+                ):
+                    match_dialog(row["wedguid"])
                 if st.button("👉 Details", key=f"open_{key_prefix}{row['wedguid']}"):
                     match_dialog(row["wedguid"])
 

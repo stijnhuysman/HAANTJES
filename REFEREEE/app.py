@@ -42,6 +42,19 @@ st.markdown(
     /* status badge ("volzet"/"nog 1 nodig"/...) — top-right corner, inside the card */
     .match-card-badge { position: absolute; top: 10px; right: 10px; }
 
+    /* invisible overlay button over the title text — clicking the title itself
+       also opens the dialog, not just the "Details" button */
+    div[class*="st-key-title_"] {
+        position: absolute !important; top: 6px; left: 6px; right: 7rem; height: 34px;
+        z-index: 4; width: auto !important;
+    }
+    div[class*="st-key-title_"] .stButton { margin: 0 !important; height: 100%; }
+    div[class*="st-key-title_"] .stButton > button {
+        width: 100% !important; height: 100% !important; min-height: 0 !important;
+        background: transparent !important; border: none !important; box-shadow: none !important;
+        color: transparent !important; padding: 0 !important;
+    }
+
     /* the "Kies" button sits right underneath the badge, in that same corner —
        not a full-width bar attached to the card anymore */
     div[class*="st-key-open_"] {
@@ -77,7 +90,7 @@ st.markdown(
 
 try:
     with st.spinner("Wedstrijden laden..."):
-        calendar_df, team_options = match_view.load_context(CLUB_GUID, OWN_TEAM_PREFIX, TWIZZIT_CSV_PATH)
+        calendar_df, team_options = match_view.load_vbl_only(CLUB_GUID, OWN_TEAM_PREFIX)
         roster_df = roster.load_roster()
 except Exception as e:
     st.error(f"Kon de wedstrijd- of spelersgegevens niet ophalen: {e}")
@@ -89,6 +102,10 @@ if calendar_df.empty:
 
 player_name, player_teams = auth.login_gate(roster_df, team_options)
 is_admin_user = player_name == auth.ADMIN_NAME
+
+# Twizzit's file_uploader fallback (when no local CSV exists) only ever shows for
+# admin — regular players never see/trigger that upload control
+calendar_df = match_view.merge_twizzit(calendar_df, TWIZZIT_CSV_PATH, OWN_TEAM_PREFIX, allow_upload=is_admin_user)
 
 with st.container(key="header_row"):
     theme.header_bar(player_name, ["Alle thuiswedstrijden"] if is_admin_user else player_teams)
@@ -111,12 +128,39 @@ match_dialog = match_view.make_match_dialog(kalender, volunteers_by_match, playe
 
 tab_list, tab_weekend, tab_mine = st.tabs(["📋 Lijst", "📆 Weekend", "✅ Toewijzingen"])
 
+STATUS_FILTER_ICON = {
+    "Alles": None,
+    "🔵 Eigen wedstrijd": "🔵",
+    "🔴 Nog geen ref": "🔴",
+    "🟠 Nog 1 nodig": "🟠",
+    "⚪ Volzet": "⚪",
+}
+
 with tab_list:
     st.markdown(match_view.legend_html(), unsafe_allow_html=True)
-    if kalender.empty:
+    status_filter = st.segmented_control(
+        "Filter",
+        options=list(STATUS_FILTER_ICON.keys()),
+        default="Alles",
+        required=True,
+        label_visibility="collapsed",
+        key="list_status_filter",
+    )
+    wanted_icon = STATUS_FILTER_ICON.get(status_filter)
+    if wanted_icon is None:
+        filtered_list = kalender
+    else:
+        mask = kalender.apply(
+            lambda row: match_view.match_status(row, volunteers_by_match, player_name)["icon"] == wanted_icon, axis=1
+        )
+        filtered_list = kalender[mask]
+
+    if filtered_list.empty:
         st.info("Geen wedstrijden gevonden voor deze selectie.")
     else:
-        match_view.render_match_cards(kalender, volunteers_by_match, player_name, match_dialog, key_prefix="list_")
+        match_view.render_match_cards(
+            filtered_list, volunteers_by_match, player_name, match_dialog, key_prefix="list_"
+        )
 
 with tab_weekend:
     # known Streamlit quirk: a custom component (the calendar) inside a non-default

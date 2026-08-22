@@ -11,8 +11,10 @@ import streamlit as st
 from src import twizzit_source
 
 
-def get_twizzit_calendar(default_path: str, own_team_prefix: str):
-    """Returns (DataFrame or None, error message or None)."""
+def get_twizzit_calendar(default_path: str, own_team_prefix: str, allow_upload: bool = True):
+    """Returns (DataFrame or None, error message or None). allow_upload=False skips
+    the file_uploader widget entirely (used for regular players — only admin should
+    see/use the upload control) and just falls back to VBL-only ref data instead."""
     if "twizzit_df" in st.session_state:
         return st.session_state["twizzit_df"], None
 
@@ -23,6 +25,9 @@ def get_twizzit_calendar(default_path: str, own_team_prefix: str):
             return df, None
         except Exception as e:
             return None, str(e)
+
+    if not allow_upload:
+        return None, None
 
     uploaded = st.file_uploader(
         "Geen lokaal Twizzit-bestand gevonden — upload de export (CSV) hier",
