@@ -2,8 +2,13 @@ name: Sync VBL calendar
 
 on:
   schedule:
-    # 05:00 UTC ≈ 06:00/07:00 Belgian time depending on DST — adjust as needed
-    - cron: "0 5 * * *"
+    # 14:00 Brussels time. Cron runs in UTC only (no DST awareness), so this is
+    # split into the two DST periods instead of one fixed UTC hour — CET
+    # (UTC+1, Nov-Mar) needs 13:00 UTC, CEST (UTC+2, Apr-Oct) needs 12:00 UTC.
+    # The exact DST changeover (last Sunday of March / October) can be off by
+    # an hour for a few days around those dates.
+    - cron: "0 13 * 11,12,1,2,3 *"
+    - cron: "0 12 * 4,5,6,7,8,9,10 *"
   workflow_dispatch: {}
 
 jobs:
