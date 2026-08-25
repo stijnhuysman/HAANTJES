@@ -128,30 +128,30 @@ match_dialog = match_view.make_match_dialog(kalender, volunteers_by_match, playe
 
 tab_list, tab_weekend, tab_mine = st.tabs(["📋 Lijst", "📆 Weekend", "✅ Toewijzingen"])
 
-STATUS_FILTER_ICON = {
+# card/legend colors (🔴/🟠/⚪/🔵) stay as-is — only the filter groups 🔴+🟠 together
+STATUS_FILTER_ICONS = {
     "Alles": None,
-    "🔵 Eigen wedstrijd": "🔵",
-    "🔴 Nog geen ref": "🔴",
-    "🟠 Nog 1 nodig": "🟠",
-    "⚪ Volzet": "⚪",
+    "🔵 Eigen": {"🔵"},
+    "🔴🟠 Ref(s) nodig": {"🔴", "🟠"},
+    "⚪ Volzet": {"⚪"},
 }
 
 with tab_list:
     st.markdown(match_view.legend_html(), unsafe_allow_html=True)
     status_filter = st.segmented_control(
         "Filter",
-        options=list(STATUS_FILTER_ICON.keys()),
+        options=list(STATUS_FILTER_ICONS.keys()),
         default="Alles",
         required=True,
         label_visibility="collapsed",
         key="list_status_filter",
     )
-    wanted_icon = STATUS_FILTER_ICON.get(status_filter)
-    if wanted_icon is None:
+    wanted_icons = STATUS_FILTER_ICONS.get(status_filter)
+    if wanted_icons is None:
         filtered_list = kalender
     else:
         mask = kalender.apply(
-            lambda row: match_view.match_status(row, volunteers_by_match, player_name)["icon"] == wanted_icon, axis=1
+            lambda row: match_view.match_status(row, volunteers_by_match, player_name)["icon"] in wanted_icons, axis=1
         )
         filtered_list = kalender[mask]
 
