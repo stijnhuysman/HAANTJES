@@ -19,7 +19,7 @@ import streamlit as st
 from streamlit_local_storage import LocalStorage
 
 from src import roster as roster_mod
-from src.match_view import ADMIN_NAME, DEFAULT_ADMIN_PASSWORD
+from src.match_view import ADMIN_NAME, BESTUUR_NAME, DEFAULT_ADMIN_PASSWORD
 
 _LOGO_PATH = Path(__file__).resolve().parent.parent / "logo_haantjes.jpg"
 
@@ -43,6 +43,9 @@ def login_gate(roster, team_options):
 
     if name == ADMIN_NAME:
         return ADMIN_NAME, []
+
+    if name == BESTUUR_NAME:
+        return BESTUUR_NAME, []
 
     if name and name in all_names:
         teams = [t for t in roster_mod.teams_for_player(roster, name) if t in team_options]
@@ -97,7 +100,7 @@ def login_gate(roster, team_options):
             # step 1: just the name-picker, nothing else (roster names + admin)
             input_name = st.selectbox(
                 "Jouw naam",
-                options=all_names + [ADMIN_NAME],
+                options=all_names + [BESTUUR_NAME, ADMIN_NAME],
                 index=None,
                 placeholder="Tik je voornaam in...",
                 label_visibility="collapsed",
@@ -118,6 +121,17 @@ def login_gate(roster, team_options):
                     st.rerun()
                 else:
                     st.error("Fout wachtwoord.")
+            if st.button("⬅️ Andere naam", key="login_pick_again"):
+                st.session_state["login_picked_name"] = None
+                st.rerun()
+        elif picked == BESTUUR_NAME:
+            # Bestuur: no password, no team-eligibility check — read-only, so
+            # there's nothing here that needs gating the way admin's writes do
+            if st.button(f"➡️ Inloggen als {picked}", use_container_width=True, type="primary"):
+                ls.setItem("ref_player_name", picked, key="set_ref_player_name")
+                st.session_state["player_name"] = picked
+                st.session_state["login_picked_name"] = None
+                st.rerun()
             if st.button("⬅️ Andere naam", key="login_pick_again"):
                 st.session_state["login_picked_name"] = None
                 st.rerun()

@@ -10,7 +10,7 @@ import streamlit as st
 
 from src import assignments_store, data_loader, roster, textstyle, vbl_store
 from src.crosscheck import cross_check_referees
-from src.vbl_source import _extract_own_team_code, _parse_agegroup
+from src.vbl_source import OWN_CLUB_FULLNAME, _extract_own_team_code, _parse_agegroup
 
 # Fallback admin password (checked in auth.py's login screen), used only when
 # the ADMIN_PASSWORD env var isn't set. This repo is public on GitHub — anyone
@@ -19,6 +19,11 @@ from src.vbl_source import _extract_own_team_code, _parse_agegroup
 # the password that actually protects the live app is never committed anywhere.
 DEFAULT_ADMIN_PASSWORD = "Haantjes9700"
 ADMIN_NAME = "admin"
+
+# Board members: same all-matches view as admin (no age/eligibility scoping),
+# but strictly read-only — no self-assign, no adding someone else, no removing
+# anyone's assignment. No password gate: unlike admin it can't change anything.
+BESTUUR_NAME = "Bestuur"
 
 REQUIRED_REFS = 2
 
@@ -95,13 +100,21 @@ def load_vbl_only():
 
 
 def _twizzit_only_matches(calendar_df: pd.DataFrame, twizzit: pd.DataFrame) -> pd.DataFrame:
-    """Twizzit rows with no counterpart in the VBL calendar — VBL only tracks
-    official competition matches, so club-internal friendlies (Oefenwedstrijd)
-    only ever exist here. Synthesized into calendar-shaped rows, with a stable
-    synthetic wedguid derived from Twizzit's own gameId (or DT+thuisploeg when
-    that's blank), so they render and get assigned exactly like a VBL match."""
+    """Club-internal friendlies (Oefenwedstrijd) — matches where BOTH sides are
+    one of our own teams. VBL only tracks official competition matches against
+    external opponents, so these never appear there; restricting to
+    both-sides-own-club (rather than "any Twizzit row with no VBL match") avoids
+    ever synthesizing a duplicate of a real VBL fixture that's just spelled
+    slightly differently between the two sources — seen in practice, VBL's
+    "Basket Midwest BP Tielt" vs Twizzit's "Basket Midwest Izegem" for what's
+    actually the same away match. Synthesized into calendar-shaped rows, with a
+    stable synthetic wedguid derived from Twizzit's own gameId (or DT+thuisploeg
+    when that's blank), so they render and get assigned like a VBL match."""
+    both_own = twizzit["thuisploeg"].str.contains(OWN_CLUB_FULLNAME, na=False) & twizzit[
+        "tegenstander"
+    ].str.contains(OWN_CLUB_FULLNAME, na=False)
     vbl_keys = set(zip(calendar_df["DT"], calendar_df["thuisploeg"]))
-    only = twizzit[~twizzit.apply(lambda r: (r["DT"], r["thuisploeg"]) in vbl_keys, axis=1)].copy()
+    only = twizzit[both_own & ~twizzit.apply(lambda r: (r["DT"], r["thuisploeg"]) in vbl_keys, axis=1)].copy()
     if only.empty:
         return only
 
@@ -296,8 +309,12 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
     state. When player_name == ADMIN_NAME, an extra "verwijder eender wie" control
     appears — normal users can only remove their own assignment, admin can remove
     any club-volunteer assignment (VBL/Twizzit-sourced official refs aren't stored
-    in our DB at all, so there's nothing here to actually remove for those)."""
+    in our DB at all, so there's nothing here to actually remove for those).
+    When player_name == BESTUUR_NAME, the dialog stops right after showing who's
+    assigned — no self-assign, no adding someone else, no removing anyone: a pure
+    read-only overview for the board."""
     is_admin = player_name == ADMIN_NAME
+    is_bestuur = player_name == BESTUUR_NAME
 
     @st.dialog("Wedstrijd details")
     def _match_dialog(wedguid):
@@ -313,7 +330,7 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
         st.write(f"📍 {m['locatie']}")
         st.write(f"🏆 {m['reeks']}")
 
-        if m["Type"] == "Mijn wedstrijd" and not is_admin:
+        if m["Type"] == "Mijn wedstrijd" and not is_admin and not is_bestuur:
             st.info("Dit is een wedstrijd van je eigen team — je kan jezelf hier niet aan toewijzen.")
             return
 
@@ -329,6 +346,9 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
             st.write(f"👥 **Toegewezen** ({len(names)}/{REQUIRED_REFS}): {formatted}")
         else:
             st.write(f"👥 **Nog niemand toegewezen** (0/{REQUIRED_REFS})")
+
+        if is_bestuur:
+            return  # read-only: overview only, no assign/remove controls at all
 
         if is_admin:
             removable = [e["name"] for e in status["entries"] if not e["vbl"]]

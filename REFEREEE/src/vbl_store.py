@@ -107,24 +107,27 @@ def upsert_calendar(calendar_df: pd.DataFrame) -> int:
     return len(rows)
 
 
+_CALENDAR_COLUMNS = [
+    "wedguid", "DT", "thuisploeg", "tegenstander", "locatie", "reeks",
+    "agegroup", "ownTeamCode", "isHome", "ref1", "ref2", "uitslag",
+]
+
+
 def load_calendar() -> pd.DataFrame:
     """Last-synced VBL calendar, in the same column shape as
-    vbl_source.get_club_calendar() — empty DataFrame if never synced yet."""
+    vbl_source.get_club_calendar() — empty DataFrame (same columns) if never
+    synced yet."""
     engine = _get_engine()
     with engine.begin() as conn:
         df = pd.read_sql_query(text("SELECT * FROM vbl_calendar"), conn)
-    if df.empty:
-        return df
 
     df = df.rename(columns={"dt": "DT", "own_team_code": "ownTeamCode", "is_home": "isHome"})
+    if df.empty:
+        return pd.DataFrame(columns=_CALENDAR_COLUMNS)
+
     df["DT"] = pd.to_datetime(df["DT"])
     df["isHome"] = df["isHome"].astype(bool)
-    return df[
-        [
-            "wedguid", "DT", "thuisploeg", "tegenstander", "locatie", "reeks",
-            "agegroup", "ownTeamCode", "isHome", "ref1", "ref2", "uitslag",
-        ]
-    ].sort_values("DT").reset_index(drop=True)
+    return df[_CALENDAR_COLUMNS].sort_values("DT").reset_index(drop=True)
 
 
 def last_synced_at():
