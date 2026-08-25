@@ -42,16 +42,21 @@ st.markdown(
     .match-card-badge { position: absolute; top: 10px; right: 10px; }
 
     /* invisible overlay button over the title text — clicking the title itself
-       also opens the dialog, not just the "Details" button */
+       also opens the dialog, not just the "Details" button. Its own text
+       mirrors the visible title (see render_match_cards), and matching that
+       text's font here lets the button wrap/grow exactly like the real title
+       (one line or two), instead of a fixed height that only covered one. */
     div[class*="st-key-title_"] {
-        position: absolute !important; top: 6px; left: 6px; right: 7rem; height: 34px;
+        position: absolute !important; top: 6px; left: 6px; right: 7rem;
         z-index: 4; width: auto !important;
     }
-    div[class*="st-key-title_"] .stButton { margin: 0 !important; height: 100%; }
+    div[class*="st-key-title_"] .stButton { margin: 0 !important; }
     div[class*="st-key-title_"] .stButton > button {
-        width: 100% !important; height: 100% !important; min-height: 0 !important;
+        width: 100% !important; height: auto !important; min-height: 0 !important;
         background: transparent !important; border: none !important; box-shadow: none !important;
         color: transparent !important; padding: 0 !important;
+        font-size: 0.92rem !important; font-weight: 700 !important; line-height: 1.3 !important;
+        white-space: normal !important; text-align: left !important;
     }
 
     /* the "Kies" button sits right underneath the badge, in that same corner —
