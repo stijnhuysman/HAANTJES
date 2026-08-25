@@ -46,11 +46,16 @@ def _get_engine():
     return engine
 
 
-def replace_calendar(calendar_df: pd.DataFrame) -> None:
-    """Wipe and reinsert the whole snapshot in one transaction — the club's
-    season list is small and rows can disappear or change on VBL's side
-    between syncs, so a full replace is simpler and safer than diffing/upserting.
-    """
+def upsert_calendar(calendar_df: pd.DataFrame) -> int:
+    """Adds/updates every match from this fetch — never deletes a row. Never
+    wipes stored history: toewijzingen are keyed to wedguid, so a match that
+    silently drops out of VBL's response (a bad fetch, a trimmed season list)
+    must not make its row — and with it, its assignment — disappear from the
+    app. Returns how many rows were written (0 if the fetch was empty and
+    nothing happened)."""
+    if calendar_df.empty:
+        return 0
+
     engine = _get_engine()
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     rows = [
@@ -71,22 +76,35 @@ def replace_calendar(calendar_df: pd.DataFrame) -> None:
         }
         for _, r in calendar_df.iterrows()
     ]
+
+    if engine.dialect.name == "sqlite":
+        upsert_sql = """
+            INSERT OR REPLACE INTO vbl_calendar
+                (wedguid, dt, thuisploeg, tegenstander, locatie, reeks, agegroup,
+                 own_team_code, is_home, ref1, ref2, uitslag, synced_at)
+            VALUES
+                (:wedguid, :dt, :thuisploeg, :tegenstander, :locatie, :reeks, :agegroup,
+                 :own_team_code, :is_home, :ref1, :ref2, :uitslag, :synced_at)
+        """
+    else:
+        upsert_sql = """
+            INSERT INTO vbl_calendar
+                (wedguid, dt, thuisploeg, tegenstander, locatie, reeks, agegroup,
+                 own_team_code, is_home, ref1, ref2, uitslag, synced_at)
+            VALUES
+                (:wedguid, :dt, :thuisploeg, :tegenstander, :locatie, :reeks, :agegroup,
+                 :own_team_code, :is_home, :ref1, :ref2, :uitslag, :synced_at)
+            ON CONFLICT (wedguid) DO UPDATE SET
+                dt = EXCLUDED.dt, thuisploeg = EXCLUDED.thuisploeg, tegenstander = EXCLUDED.tegenstander,
+                locatie = EXCLUDED.locatie, reeks = EXCLUDED.reeks, agegroup = EXCLUDED.agegroup,
+                own_team_code = EXCLUDED.own_team_code, is_home = EXCLUDED.is_home,
+                ref1 = EXCLUDED.ref1, ref2 = EXCLUDED.ref2, uitslag = EXCLUDED.uitslag,
+                synced_at = EXCLUDED.synced_at
+        """
+
     with engine.begin() as conn:
-        conn.execute(text("DELETE FROM vbl_calendar"))
-        if rows:
-            conn.execute(
-                text(
-                    """
-                    INSERT INTO vbl_calendar
-                        (wedguid, dt, thuisploeg, tegenstander, locatie, reeks, agegroup,
-                         own_team_code, is_home, ref1, ref2, uitslag, synced_at)
-                    VALUES
-                        (:wedguid, :dt, :thuisploeg, :tegenstander, :locatie, :reeks, :agegroup,
-                         :own_team_code, :is_home, :ref1, :ref2, :uitslag, :synced_at)
-                    """
-                ),
-                rows,
-            )
+        conn.execute(text(upsert_sql), rows)
+    return len(rows)
 
 
 def load_calendar() -> pd.DataFrame:

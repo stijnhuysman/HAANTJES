@@ -24,8 +24,11 @@ def main():
     own_team_prefix = os.environ.get("VBL_OWN_TEAM_PREFIX", "BBC Haantjes ")
 
     calendar_df = vbl_source.get_club_calendar(club_guid, own_team_prefix)
-    vbl_store.replace_calendar(calendar_df)
-    print(f"Synced {len(calendar_df)} wedstrijden van Basketbal Vlaanderen naar de backend.")
+    written = vbl_store.upsert_calendar(calendar_df)
+    if written == 0:
+        print("Lege/mislukte fetch van Basketbal Vlaanderen — backend niet aangepast, bestaande data blijft behouden.")
+    else:
+        print(f"Synced {written} wedstrijden van Basketbal Vlaanderen naar de backend.")
 
 
 if __name__ == "__main__":
