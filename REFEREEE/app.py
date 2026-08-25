@@ -15,6 +15,7 @@ Run with: streamlit run app.py
 """
 import os
 from datetime import date, timedelta
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -29,8 +30,13 @@ st.set_page_config(page_title="Haantjes Refereeing", layout="wide", page_icon="ð
 theme.inject_css()
 theme.inject_pwa()
 
+_APP_DIR = Path(__file__).resolve().parent
+
 OWN_TEAM_PREFIX = os.environ.get("VBL_OWN_TEAM_PREFIX", "BBC Haantjes ")
-TWIZZIT_CSV_PATH = os.environ.get("TWIZZIT_CSV_PATH", "data/twizzit_export.csv")
+# relative (whether from .env or the default) is resolved against this file's own
+# folder, not the current working directory streamlit happened to be launched from
+_twizzit_path = os.environ.get("TWIZZIT_CSV_PATH", "data/twizzit_export.csv")
+TWIZZIT_CSV_PATH = _twizzit_path if Path(_twizzit_path).is_absolute() else str(_APP_DIR / _twizzit_path)
 
 # card styling â€” shared by the Wedstrijdlijst and Mijn toewijzingen tabs
 st.markdown(
