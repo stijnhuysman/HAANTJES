@@ -46,7 +46,10 @@ def login_gate(roster, team_options):
 
     if name and name in all_names:
         teams = [t for t in roster_mod.teams_for_player(roster, name) if t in team_options]
-        if teams:
+        # a coach doesn't need their own team to have matches — they're eligible
+        # to referee every other team's home matches regardless (see match_view's
+        # all_games bypass), so an empty teams list shouldn't block login
+        if teams or roster_mod.is_coach(roster, name):
             return name, teams
 
     # --- Login screen: centered card, like a mobile app's welcome/login page ---
@@ -120,9 +123,13 @@ def login_gate(roster, team_options):
                 st.rerun()
         else:
             # step 2: the picker is replaced by a single "Inloggen" button —
-            # only a warning appears if this player currently has no matches
+            # only a warning appears if this player currently has no matches.
+            # Coaches are exempt: they're eligible to referee every other
+            # team's home matches regardless of whether their own team has
+            # any games right now, so an empty preview shouldn't block them.
             preview_teams = [t for t in roster_mod.teams_for_player(roster, picked) if t in team_options]
-            if not preview_teams:
+            is_coach_pick = roster_mod.is_coach(roster, picked)
+            if not preview_teams and not is_coach_pick:
                 st.warning(f"Voor {picked}'s team(en) zijn momenteel geen wedstrijden gevonden.")
             elif st.button(f"➡️ Inloggen als {picked}", use_container_width=True, type="primary"):
                 ls.setItem("ref_player_name", picked, key="set_ref_player_name")
