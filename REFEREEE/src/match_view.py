@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-from src import assignments_store, data_loader, roster, textstyle, vbl_source
+from src import assignments_store, data_loader, roster, textstyle, vbl_store
 from src.crosscheck import cross_check_referees
 
 # Fallback admin password (checked in auth.py's login screen), used only when
@@ -74,15 +74,19 @@ def ref_line_html(entries) -> str:
 
 
 @st.cache_data(ttl=900)
-def load_vbl_calendar(club_guid: str, own_team_prefix: str) -> pd.DataFrame:
-    return vbl_source.get_club_calendar(club_guid, own_team_prefix)
+def load_vbl_calendar() -> pd.DataFrame:
+    """Reads the daily-synced VBL snapshot (src/vbl_store.py, refreshed by
+    sync_vbl.py) rather than hitting the live VBL API on every page load — VBL
+    is the only source allowed to overwrite referee assignments in this app,
+    so that snapshot, not a per-request fetch, is what's authoritative here."""
+    return vbl_store.load_calendar()
 
 
-def load_vbl_only(club_guid: str, own_team_prefix: str):
+def load_vbl_only():
     """Returns (calendar_df, team_options) from VBL alone — no Twizzit involved, so
     this can run before login (team_options is needed by the login screen itself)
     without ever touching the Twizzit upload widget."""
-    calendar_df = load_vbl_calendar(club_guid, own_team_prefix)
+    calendar_df = load_vbl_calendar()
     if calendar_df.empty:
         return calendar_df, []
     team_options = sorted(calendar_df["ownTeamCode"].dropna().unique())
@@ -108,16 +112,21 @@ def merge_twizzit(calendar_df: pd.DataFrame, twizzit_csv_path: str, own_team_pre
     return calendar_df.merge(official, on="wedguid", how="left")
 
 
-def build_kalender(calendar_df: pd.DataFrame, player_teams) -> pd.DataFrame:
+def build_kalender(calendar_df: pd.DataFrame, player_teams, all_games: bool = False) -> pd.DataFrame:
     """Own team's matches (info only) + other teams' home matches the player is
     old/senior enough to referee, per the club's age-eligibility rule (own tier ->
-    ELIGIBLE_TO_REF[own tier], see src/roster.py)."""
+    ELIGIBLE_TO_REF[own tier], see src/roster.py). all_games=True (coaches) skips
+    that age-eligibility check entirely — every other team's home match is fair
+    game, regardless of category."""
     own_matches = calendar_df[calendar_df["ownTeamCode"].isin(player_teams)].copy()
     own_matches["Type"] = "Mijn wedstrijd"
 
-    own_tier = roster.own_tier_from_teams(player_teams)
-    eligible_tiers = roster.eligible_ref_tiers(own_tier)
-    eligible_mask = calendar_df["ownTeamCode"].apply(roster.parse_age).isin(eligible_tiers)
+    if all_games:
+        eligible_mask = True
+    else:
+        own_tier = roster.own_tier_from_teams(player_teams)
+        eligible_tiers = roster.eligible_ref_tiers(own_tier)
+        eligible_mask = calendar_df["ownTeamCode"].apply(roster.parse_age).isin(eligible_tiers)
 
     other_home = calendar_df[
         calendar_df["isHome"] & (~calendar_df["ownTeamCode"].isin(player_teams)) & eligible_mask

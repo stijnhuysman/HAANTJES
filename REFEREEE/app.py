@@ -29,7 +29,6 @@ st.set_page_config(page_title="Haantjes Refereeing", layout="wide", page_icon="�
 theme.inject_css()
 theme.inject_pwa()
 
-CLUB_GUID = os.environ.get("VBL_CLUB_GUID", "BVBL1037")
 OWN_TEAM_PREFIX = os.environ.get("VBL_OWN_TEAM_PREFIX", "BBC Haantjes ")
 TWIZZIT_CSV_PATH = os.environ.get("TWIZZIT_CSV_PATH", "data/twizzit_export.csv")
 
@@ -90,7 +89,7 @@ st.markdown(
 
 try:
     with st.spinner("Wedstrijden laden..."):
-        calendar_df, team_options = match_view.load_vbl_only(CLUB_GUID, OWN_TEAM_PREFIX)
+        calendar_df, team_options = match_view.load_vbl_only()
         roster_df = roster.load_roster()
 except Exception as e:
     st.error(f"Kon de wedstrijd- of spelersgegevens niet ophalen: {e}")
@@ -102,6 +101,7 @@ if calendar_df.empty:
 
 player_name, player_teams = auth.login_gate(roster_df, team_options)
 is_admin_user = player_name == auth.ADMIN_NAME
+is_coach_user = not is_admin_user and roster.is_coach(roster_df, player_name)
 
 # Twizzit's file_uploader fallback (when no local CSV exists) only ever shows for
 # admin — regular players never see/trigger that upload control
@@ -116,7 +116,7 @@ if is_admin_user:
     kalender = calendar_df[calendar_df["isHome"]].copy()
     kalender["Type"] = "Beschikbaar"
 else:
-    kalender = match_view.build_kalender(calendar_df, player_teams)
+    kalender = match_view.build_kalender(calendar_df, player_teams, all_games=is_coach_user)
 
 # toekomstige wedstrijden — vanaf vandaag (op datum, niet tijdstip, zodat een
 # wedstrijd die vandaag al bezig/voorbij is nog zichtbaar blijft, en het volledige

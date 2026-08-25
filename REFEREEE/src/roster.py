@@ -32,15 +32,15 @@ _TEAM_CODE_RE = re.compile(r"^([A-Za-z]+\d*)\s+([ABC])$")
 AGE_LADDER = ["SE", 21, 18, 16, 14, 12, 10]
 
 # Which age tiers a player of a given own tier is allowed to referee.
-# SE can ref everything below except the youngest (10); every other tier can ref the
-# two tiers directly below it. The youngest (10) is deliberately NOT bumped up to ref
-# SE/21 games — instead given the same target tiers as the "16" rung (14, 12), so a
-# 10-year-old refs games a couple of age groups up instead of adult senior games.
+# SE can ref everything below except the youngest (10). The youngest (10) is
+# deliberately NOT bumped up to ref SE/21 games — instead given the same target
+# tiers as the "16" rung (14, 12), so a 10-year-old refs games a couple of age
+# groups up instead of adult senior games.
 ELIGIBLE_TO_REF = {
     "SE": [21, 18, 16, 14, 12],
-    21: [18, 16],
-    18: [16, 14],
-    16: [14, 12],
+    21: [18, 16, 14, 12],
+    18: [16, 14, 12, 10],
+    16: [14, 12, 10],
     14: [12, 10],
     12: [10],
     10: [14, 12],
@@ -139,6 +139,12 @@ def load_roster() -> pd.DataFrame:
 
 def player_names(roster: pd.DataFrame):
     return sorted(roster["name"].dropna().unique())
+
+
+def is_coach(roster: pd.DataFrame, name: str) -> bool:
+    """Coaches ref-eligibility is unscoped: any home match, any age category —
+    they're not restricted to ELIGIBLE_TO_REF like players are."""
+    return bool((roster.loc[roster["name"] == name, "role"] == "Coach").any())
 
 
 def teams_for_player(roster: pd.DataFrame, name: str):

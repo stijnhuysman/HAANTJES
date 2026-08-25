@@ -1,50 +1,37 @@
 """
-Shared store for player-volunteered referee assignments.
-
-Uses Postgres (via the DATABASE_URL env var, e.g. a free Supabase project)
-when set, so assignments survive restarts/redeploys on Streamlit Community
-Cloud's free tier (its local disk is NOT persistent). Falls back to a local
-SQLite file for local development, where that isn't a concern.
+Shared store for player-volunteered referee assignments. Uses the shared
+engine from src/db.py (Postgres via DATABASE_URL, or local SQLite fallback).
 """
-import os
 from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-_LOCAL_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "assignments.db"
+from src.db import get_engine
 
-_engine = None
+_initialized = False
 
 
 def _get_engine():
-    global _engine
-    if _engine is not None:
-        return _engine
-
-    database_url = os.environ.get("DATABASE_URL")
-    if database_url:
-        _engine = create_engine(database_url, pool_pre_ping=True)
-    else:
-        _LOCAL_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _engine = create_engine(f"sqlite:///{_LOCAL_DB_PATH}")
-
-    with _engine.begin() as conn:
-        conn.execute(
-            text(
-                """
-                CREATE TABLE IF NOT EXISTS assignments (
-                    match_key TEXT NOT NULL,
-                    player_name TEXT NOT NULL,
-                    player_team TEXT NOT NULL,
-                    assigned_at TEXT NOT NULL,
-                    PRIMARY KEY (match_key, player_name)
+    global _initialized
+    engine = get_engine()
+    if not _initialized:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS assignments (
+                        match_key TEXT NOT NULL,
+                        player_name TEXT NOT NULL,
+                        player_team TEXT NOT NULL,
+                        assigned_at TEXT NOT NULL,
+                        PRIMARY KEY (match_key, player_name)
+                    )
+                    """
                 )
-                """
             )
-        )
-    return _engine
+        _initialized = True
+    return engine
 
 
 def get_assignments() -> pd.DataFrame:
