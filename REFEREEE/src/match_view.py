@@ -10,6 +10,7 @@ import streamlit as st
 
 from src import assignments_store, data_loader, roster, textstyle, vbl_store
 from src.crosscheck import cross_check_referees
+from src.vbl_source import _extract_own_team_code, _parse_agegroup
 
 # Fallback admin password (checked in auth.py's login screen), used only when
 # the ADMIN_PASSWORD env var isn't set. This repo is public on GitHub — anyone
@@ -93,15 +94,51 @@ def load_vbl_only():
     return calendar_df, team_options
 
 
+def _twizzit_only_matches(calendar_df: pd.DataFrame, twizzit: pd.DataFrame) -> pd.DataFrame:
+    """Twizzit rows with no counterpart in the VBL calendar — VBL only tracks
+    official competition matches, so club-internal friendlies (Oefenwedstrijd)
+    only ever exist here. Synthesized into calendar-shaped rows, with a stable
+    synthetic wedguid derived from Twizzit's own gameId (or DT+thuisploeg when
+    that's blank), so they render and get assigned exactly like a VBL match."""
+    vbl_keys = set(zip(calendar_df["DT"], calendar_df["thuisploeg"]))
+    only = twizzit[~twizzit.apply(lambda r: (r["DT"], r["thuisploeg"]) in vbl_keys, axis=1)].copy()
+    if only.empty:
+        return only
+
+    only["wedguid"] = "twz-" + only["gameId"].fillna(
+        only["DT"].astype(str) + "|" + only["thuisploeg"]
+    ).astype(str)
+    only["locatie"] = only["resource"]
+    only["ownTeamCode"] = only.apply(
+        lambda r: _extract_own_team_code(r["thuisploeg"], r["tegenstander"]), axis=1
+    )
+    only["agegroup"] = only["ownTeamCode"].apply(_parse_agegroup)
+    only["uitslag"] = None
+    only["refFinal1"] = only["ref1"]
+    only["refFinal2"] = only["ref2"]
+    only["refSource"] = "Twizzit"
+
+    return only[
+        [
+            "wedguid", "DT", "thuisploeg", "tegenstander", "locatie", "reeks", "agegroup",
+            "ownTeamCode", "isHome", "ref1", "ref2", "uitslag", "refFinal1", "refFinal2", "refSource",
+        ]
+    ]
+
+
 def merge_twizzit(calendar_df: pd.DataFrame, twizzit_csv_path: str, own_team_prefix: str, allow_upload: bool):
     """Merges cross-checked official referee columns (refFinal1/refFinal2/refSource)
-    into calendar_df. allow_upload gates the Twizzit file_uploader fallback — only
-    True for the admin login, per the club's request that regular players never
-    see/trigger that upload control."""
+    into calendar_df, and appends Twizzit-only matches (friendlies VBL never tracks)
+    as extra rows of their own. allow_upload gates the Twizzit file_uploader
+    fallback — only True for the admin login, per the club's request that regular
+    players never see/trigger that upload control."""
     twizzit, twizzit_error = data_loader.get_twizzit_calendar(twizzit_csv_path, own_team_prefix, allow_upload)
     if twizzit is not None and not twizzit.empty and not twizzit_error:
         cross = cross_check_referees(calendar_df, twizzit)
-        official = cross[["wedguid", "refFinal1", "refFinal2", "refSource"]]
+        official = cross[["wedguid", "refFinal1", "refFinal2", "refSource"]].dropna(subset=["wedguid"])
+        merged = calendar_df.merge(official, on="wedguid", how="left")
+        extra = _twizzit_only_matches(calendar_df, twizzit)
+        return pd.concat([merged, extra], ignore_index=True) if not extra.empty else merged
     else:
         # no Twizzit to cross-check against -> ref1/ref2 here are VBL's own fields, so
         # any name present was, by definition, aangeduid door Basketbal Vlaanderen
@@ -109,7 +146,7 @@ def merge_twizzit(calendar_df: pd.DataFrame, twizzit_csv_path: str, own_team_pre
             columns={"ref1": "refFinal1", "ref2": "refFinal2"}
         )
         official["refSource"] = "VBL"
-    return calendar_df.merge(official, on="wedguid", how="left")
+        return calendar_df.merge(official, on="wedguid", how="left")
 
 
 def build_kalender(calendar_df: pd.DataFrame, player_teams, all_games: bool = False) -> pd.DataFrame:

@@ -33,21 +33,26 @@ def _parse_officials(omschrijving):
 
 
 def _split_title(titel):
-    """'<reeks>: <thuisploeg> - <tegenstander>' -> (reeks, thuisploeg, tegenstander)."""
-    if not isinstance(titel, str) or ":" not in titel:
+    """'<reeks>: <thuisploeg> - <tegenstander>' -> (reeks, thuisploeg, tegenstander).
+    Friendlies (Oefenwedstrijd) have no reeks prefix — just '<thuisploeg> - <tegenstander>'."""
+    if not isinstance(titel, str):
         return None, titel, None
-    reeks, matchup = titel.split(":", 1)
-    reeks = reeks.strip()
+    if ":" in titel:
+        reeks, matchup = titel.split(":", 1)
+        reeks = reeks.strip()
+    else:
+        reeks, matchup = None, titel
+    matchup = matchup.strip()
     if " - " in matchup:
         home, away = matchup.split(" - ", 1)
         return reeks, home.strip(), away.strip()
-    return reeks, matchup.strip(), None
+    return reeks, matchup, None
 
 
 def load_twizzit_export(path_or_buffer, own_team_prefix: str = "BBC Haantjes ") -> pd.DataFrame:
     """`path_or_buffer` is a file path (local dev) or an uploaded file-like object."""
     df = pd.read_csv(path_or_buffer, sep=";", dtype=str)
-    df = df[df["Activity subtype"] == "Competitiewedstrijd"].reset_index(drop=True)
+    df = df[df["Activity subtype"].isin(["Competitiewedstrijd", "Oefenwedstrijd"])].reset_index(drop=True)
 
     for col in ("Titel", "Omschrijving", "Groep", "Resource", "Resource address"):
         df[col] = df[col].apply(_fix_mojibake)
