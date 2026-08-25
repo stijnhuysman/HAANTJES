@@ -1,11 +1,13 @@
 """
-Club roster (players + coaches -> team(s)) loaded from two tabs of the public
-REFCALENDAR SPELERS.xlsx workbook on GitHub: "Jeugdrefs" (players) and
-"Speler-Coach" (everyone, filtered to Functie == "Coach"). Drives the login
-dropdown (pick a real name instead of typing one) and the age-based
+Club roster (players + coaches -> team(s)) loaded from the "Jeugdrefs" tab of
+the public REFCALENDAR SPELERS.xlsx workbook on GitHub — one row per person
+per team, with its own Titel column ("Speler"/"Coach") as the role. Drives the
+login dropdown (pick a real name instead of typing one) and the age-based
 refereeing-eligibility rule: a person's OWN category is the highest-ranked
 team they're on ("highest number wins"), and that category determines which
-other categories' home games they're allowed to referee.
+other categories' home games they're allowed to referee — except coaches,
+who are eligible to referee any home match regardless of category (see
+is_coach()).
 """
 import re
 
@@ -16,17 +18,6 @@ ROSTER_URL = (
     "https://raw.githubusercontent.com/stijnhuysman/HAANTJES/main/"
     "REFEREEE/REFCALENDAR%20SPELERS.xlsx"
 )
-
-_COACH_SHEET = "Speler-Coach"
-
-# "Speler-Coach" spells full team names like "DSE A Haantjes Certifisc Oudenaarde"
-# or "G10 Blauw HAANTJES CERTIFISC OUDENAARDE" — strip the club suffix, then only
-# keep it if what's left looks like a real VBL team code (letter-prefix + optional
-# digits + a single trailing A/B/C). This deliberately excludes the youngest teams
-# (G08/G10/G12), which are labelled by colour here ("Geel"/"Blauw"/"Groen") instead
-# of a letter — same scope as "Jeugdrefs", which has no G08/G10/G12 entries either.
-_CLUB_SUFFIX_RE = re.compile(r"\s*Haantjes\s+Certifisc\s+Oudenaarde\s*$", re.IGNORECASE)
-_TEAM_CODE_RE = re.compile(r"^([A-Za-z]+\d*)\s+([ABC])$")
 
 # Age ladder, highest to lowest. "SE" (senioren) has no numeric age and ranks above 21.
 AGE_LADDER = ["SE", 21, 18, 16, 14, 12, 10]
@@ -83,53 +74,15 @@ def eligible_ref_tiers(own_tier):
     return ELIGIBLE_TO_REF.get(own_tier, [])
 
 
-def _extract_team_code(full_name) -> str | None:
-    if not isinstance(full_name, str):
-        return None
-    normalized = re.sub(r"\s+", " ", full_name).strip()
-    stripped = _CLUB_SUFFIX_RE.sub("", normalized).strip()
-    match = _TEAM_CODE_RE.match(stripped)
-    if not match:
-        return None
-    return f"{match.group(1).upper()} {match.group(2).upper()}"
-
-
-def _load_coaches() -> pd.DataFrame:
-    """Coach rows from "Speler-Coach", team-code-mapped and filtered down to just
-    the ones we could confidently map (see module docstring)."""
-    raw = pd.read_excel(ROSTER_URL, sheet_name=_COACH_SHEET, engine="openpyxl")
-    raw = raw[raw["Functie"] == "Coach"]
-    # the team-membership column is literally named after the season (e.g.
-    # "2026-2027") so it renames itself every year — reference it by position
-    # (6th column) instead of by name
-    team_col = raw.columns[5]
-    coaches = pd.DataFrame(
-        {
-            "name": raw["Naam"],
-            "photo": raw["Profielfoto"],
-            "team": raw[team_col].apply(_extract_team_code),
-            "role": "Coach",
-        }
-    )
-    return coaches.dropna(subset=["name", "team"])
-
-
 @st.cache_data(ttl=3600)
 def load_roster() -> pd.DataFrame:
     """One row per (person, team): columns name, team, photo, ageTier, role
-    ("Speler" or "Coach") — a person coaching one team and playing another just
-    gets one row each; teams_for_player/own_tier_from_teams naturally combine them."""
-    players = pd.read_excel(ROSTER_URL, sheet_name="Jeugdrefs", engine="openpyxl")
-    players = players.rename(columns={"Naam": "name", "Profielfoto": "photo", "TEAM": "team"})
-    players = players[["name", "photo", "team"]]
-    players["role"] = "Speler"
-
-    try:
-        coaches = _load_coaches()
-    except Exception:
-        coaches = pd.DataFrame(columns=["name", "photo", "team", "role"])
-
-    df = pd.concat([players, coaches], ignore_index=True)
+    ("Speler" or "Coach", straight from Jeugdrefs' own Titel column) — a
+    person coaching one team and playing another just gets one row each;
+    teams_for_player/own_tier_from_teams naturally combine them."""
+    df = pd.read_excel(ROSTER_URL, sheet_name="Jeugdrefs", engine="openpyxl")
+    df = df.rename(columns={"Naam": "name", "Profielfoto": "photo", "TEAM": "team", "Titel": "role"})
+    df = df[["name", "photo", "team", "role"]]
     df = df.dropna(subset=["name", "team"])
     df["name"] = df["name"].astype(str).str.strip()
     df["team"] = df["team"].astype(str).str.strip()
