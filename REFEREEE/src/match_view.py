@@ -56,10 +56,14 @@ def _bbvl_open_cutoff(dt: pd.Timestamp) -> pd.Timestamp:
 
 
 def bbvl_priority_info(row):
-    """None for categories below U14. Otherwise a dict with the tier label, the
-    Wednesday-15:00 cutoff for this specific match, and whether that cutoff has
-    passed yet — used to show the "toewijzing verwacht via BVBL" note and to
-    gate self-assignment until that point."""
+    """None for categories below U14, and for friendlies (OEFEN) regardless of
+    category — BVBL only assigns officials to real competition matches, never
+    to a practice match, so those stay in the normal red/orange/grey situation.
+    Otherwise a dict with the tier label, the Wednesday-15:00 cutoff for this
+    specific match, and whether that cutoff has passed yet — used to show the
+    "toewijzing verwacht via BVBL" note and to gate self-assignment until then."""
+    if "OEFEN" in str(row.get("reeks", "")).upper():
+        return None
     tier = roster.parse_age(row.get("ownTeamCode"))
     if tier not in BBVL_PRIORITY_TIERS:
         return None
