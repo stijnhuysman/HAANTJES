@@ -31,8 +31,40 @@ COLOR_OWN = "#1f77b4"     # blue — your own team's match, informational only
 COLOR_NONE = "#d62728"    # red — nog geen ref toegewezen
 COLOR_PARTIAL = "#ff7f0e" # orange — nog 1 ref nodig
 COLOR_FULL = "#888888"    # grey — volzet (2 refs), no longer choosable
+COLOR_BBVL_WAIT = "#9467bd"  # purple — U14+, still reserved for BVBL's own assignment
 
-STATUS_LABELS = {"🔵": "Eigen wedstrijd", "🔴": "Nog geen ref", "🟠": "Nog 1 nodig", "⚪": "Volzet"}
+STATUS_LABELS = {
+    "🔵": "Eigen wedstrijd",
+    "🔴": "Nog geen ref",
+    "🟠": "Nog 1 nodig",
+    "⚪": "Volzet",
+    "🟣": "wss toewijzing door BBVL",
+}
+
+# U14 and every category above it (U16, U18, U21, Senioren): Basketbal Vlaanderen
+# is expected to assign its own official referee for these first. Club
+# self-assignment for these categories only opens from Wednesday 15:00 of that
+# match's own week — and only if BVBL hasn't filled it in by then.
+BBVL_PRIORITY_TIERS = {14, 16, 18, 21, "SE"}
+_TIER_LABELS = {14: "U14", 16: "U16", 18: "U18", 21: "U21", "SE": "Senioren"}
+
+
+def _bbvl_open_cutoff(dt: pd.Timestamp) -> pd.Timestamp:
+    """Wednesday 15:00 of dt's own week (Monday=0 .. Sunday=6, so Wednesday=2)."""
+    days_since_wednesday = (dt.weekday() - 2) % 7
+    return dt.normalize() - pd.Timedelta(days=days_since_wednesday) + pd.Timedelta(hours=15)
+
+
+def bbvl_priority_info(row):
+    """None for categories below U14. Otherwise a dict with the tier label, the
+    Wednesday-15:00 cutoff for this specific match, and whether that cutoff has
+    passed yet — used to show the "toewijzing verwacht via BVBL" note and to
+    gate self-assignment until that point."""
+    tier = roster.parse_age(row.get("ownTeamCode"))
+    if tier not in BBVL_PRIORITY_TIERS:
+        return None
+    cutoff = _bbvl_open_cutoff(row["DT"])
+    return {"tier": tier, "label": _TIER_LABELS.get(tier, str(tier)), "cutoff": cutoff, "is_open": pd.Timestamp.now() >= cutoff}
 
 _NL_WEEKDAYS = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
 
@@ -59,7 +91,9 @@ def legend_html() -> str:
     def _item(text: str) -> str:
         return f'<span style="white-space:nowrap; margin-right:0.7rem;">{text}</span>'
 
-    line1 = "".join(_item(t) for t in ["🔵 eigen wedstrijd", "🔴 nog geen ref", "🟠 nog 1 nodig", "⚪ volzet"])
+    line1 = "".join(
+        _item(t) for t in ["🔵 eigen wedstrijd", "🔴 nog geen ref", "🟠 nog 1 nodig", "⚪ volzet", "🟣 wss BBVL"]
+    )
     line2 = "".join(_item(t) for t in ["<b>vet</b> = BVBL", "<i>cursief</i> = clubref"])
     return (
         '<div style="font-size:0.78rem; color:#666; line-height:1.7; margin-bottom:0.6rem;">'
@@ -212,13 +246,25 @@ def assigned_entries(volunteers_by_match, wedguid, ref1, ref2, ref_source):
 def match_status(row, volunteers_by_match, player_name):
     """One place computing color/icon/assigned-names/full-state for a match row.
     Urgency-based coloring for choosable matches: red = nog geen ref, orange = nog
-    1 ref nodig, grey = volzet — regardless of whether one of the names is you."""
+    1 ref nodig, grey = volzet — regardless of whether one of the names is you.
+    U14+ matches get an extra purple "wss toewijzing door BBVL" status instead of
+    red/orange until that match's Wednesday-15:00 cutoff, since BVBL — not club
+    volunteers — is expected to fill those first (see bbvl_priority_info)."""
     if row["Type"] == "Mijn wedstrijd":
         return {"color": COLOR_OWN, "icon": "🔵", "names": [], "entries": [], "am_i_assigned": False, "is_full": False}
     entries = assigned_entries(volunteers_by_match, row["wedguid"], row["refFinal1"], row["refFinal2"], row.get("refSource"))
     names = [e["name"] for e in entries]
     am_i_assigned = player_name in names
     is_full = len(names) >= REQUIRED_REFS
+
+    if not is_full:
+        priority = bbvl_priority_info(row)
+        if priority and not priority["is_open"]:
+            return {
+                "color": COLOR_BBVL_WAIT, "icon": "🟣", "names": names, "entries": entries,
+                "am_i_assigned": am_i_assigned, "is_full": False,
+            }
+
     if is_full:
         color, icon = COLOR_FULL, "⚪"
     elif len(names) == 1:
@@ -347,6 +393,10 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
         else:
             st.write(f"👥 **Nog niemand toegewezen** (0/{REQUIRED_REFS})")
 
+        priority = bbvl_priority_info(m)
+        if priority:
+            st.info(f"📋 Categorie: {priority['label']} — toewijzing verwacht via BVBL.")
+
         if is_bestuur:
             return  # read-only: overview only, no assign/remove controls at all
 
@@ -364,7 +414,17 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
         if m["Type"] == "Mijn wedstrijd":
             return  # admin viewing an own-team match: info + remove-toewijzing only, no self-assign
 
-        if status["am_i_assigned"]:
+        # U14-and-up: club self-assignment (new signups only — removing your own
+        # existing assignment always stays possible) is locked until BVBL's own
+        # window closes, Wednesday 15:00 of that match's week
+        locked = bool(priority) and not priority["is_open"] and not is_admin and not status["am_i_assigned"]
+
+        if locked:
+            st.caption(
+                f"Zelf kiezen kan vanaf woensdag {priority['cutoff'].strftime('%d/%m')} 15:00u, "
+                "indien dan nog niet ingevuld door BVBL."
+            )
+        elif status["am_i_assigned"]:
             if st.button("➖ Verwijder mijn toewijzing", use_container_width=True):
                 assignments_store.unassign(wedguid, player_name)
                 st.success("Toewijzing verwijderd.")
@@ -375,7 +435,9 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
                 st.success("Toegewezen!")
                 st.rerun()
 
-        if status["is_full"]:
+        if locked:
+            pass  # caption above already covers it — no add-other-name field either
+        elif status["is_full"]:
             st.warning(f"Deze wedstrijd heeft al {REQUIRED_REFS} scheidsrechters — er kan niemand meer bij.")
         else:
             st.divider()
