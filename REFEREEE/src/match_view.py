@@ -137,10 +137,15 @@ def load_vbl_calendar() -> pd.DataFrame:
 def load_vbl_only():
     """Returns (calendar_df, team_options) from VBL alone — no Twizzit involved, so
     this can run before login (team_options is needed by the login screen itself)
-    without ever touching the Twizzit upload widget."""
+    without ever touching the Twizzit upload widget. G08 (U8) matches are dropped
+    here — no referee is needed at that age, so they're excluded from the whole
+    app rather than just from ref-eligibility (own_tier_from_teams already treats
+    them as unreffable via roster.parse_age, but that alone still let admin/coach/
+    Extern/Bestuur see and assign them via the all_games bypass)."""
     calendar_df = load_vbl_calendar()
     if calendar_df.empty:
         return calendar_df, []
+    calendar_df = calendar_df[~calendar_df["ownTeamCode"].str.contains("G08", na=False)]
     team_options = sorted(calendar_df["ownTeamCode"].dropna().unique())
     return calendar_df, team_options
 
