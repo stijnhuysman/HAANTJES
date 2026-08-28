@@ -42,6 +42,19 @@ _NON_AGE_TEAMS = {"Trainerspoule"}
 
 _NUMERIC_RUNGS = [r for r in AGE_LADDER if isinstance(r, int)]
 
+# "Extern" isn't a Twizzit-tracked playing team either — it's for volunteer refs
+# with no club membership (own tier stays None; see is_extern/has_all_games_access
+# below for how they actually get ref-eligibility instead of via AGE_LADDER).
+EXTERN_TEAM = "Extern"
+
+# People with no Twizzit membership row at all (e.g. an external volunteer ref) —
+# merged into the sheet-derived roster in load_roster() instead of hand-editing
+# the fragile formula-chained REFCALENDAR SPELERS.xlsx for someone who isn't a
+# real club member to begin with.
+MANUAL_ADDITIONS = [
+    {"name": "Tijs Simoens", "photo": None, "team": EXTERN_TEAM, "role": "Speler"},
+]
+
 
 def parse_age(team_code: str):
     """'DSE A'/'HSE B' -> 'SE'; 'J21 A' -> 21; 'M19 A' -> 18 (snapped to nearest rung);
@@ -87,7 +100,9 @@ def load_roster() -> pd.DataFrame:
     df["name"] = df["name"].astype(str).str.strip()
     df["team"] = df["team"].astype(str).str.strip()
     df["ageTier"] = df["team"].apply(parse_age)
-    return df
+    manual = pd.DataFrame(MANUAL_ADDITIONS)
+    manual["ageTier"] = manual["team"].apply(parse_age)
+    return pd.concat([df, manual], ignore_index=True)
 
 
 def player_names(roster: pd.DataFrame):
@@ -98,6 +113,20 @@ def is_coach(roster: pd.DataFrame, name: str) -> bool:
     """Coaches ref-eligibility is unscoped: any home match, any age category —
     they're not restricted to ELIGIBLE_TO_REF like players are."""
     return bool((roster.loc[roster["name"] == name, "role"] == "Coach").any())
+
+
+def is_extern(roster: pd.DataFrame, name: str) -> bool:
+    """"Extern" team members (volunteer refs with no club membership) get the
+    same unrestricted ref-eligibility as coaches — see has_all_games_access()."""
+    teams = roster.loc[roster["name"] == name, "team"]
+    return bool((teams.str.strip().str.lower() == EXTERN_TEAM.lower()).any())
+
+
+def has_all_games_access(roster: pd.DataFrame, name: str) -> bool:
+    """True for coaches and "Extern"-team members: eligible to referee every
+    other team's home match, any age category, unlike a normal player who's
+    scoped by ELIGIBLE_TO_REF via their own age tier."""
+    return is_coach(roster, name) or is_extern(roster, name)
 
 
 def teams_for_player(roster: pd.DataFrame, name: str):

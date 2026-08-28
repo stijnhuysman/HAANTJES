@@ -113,23 +113,34 @@ if calendar_df.empty:
 player_name, player_teams = auth.login_gate(roster_df, team_options)
 is_admin_user = player_name == auth.ADMIN_NAME
 is_bestuur_user = player_name == match_view.BESTUUR_NAME
-is_coach_user = not is_admin_user and not is_bestuur_user and roster.is_coach(roster_df, player_name)
+is_extern_user = player_name == match_view.EXTERN_NAME
+# coaches and "Extern"-team roster members (e.g. Tijs Simoens) both get the same
+# unrestricted all-teams/all-ages eligibility — see roster.has_all_games_access
+all_games_user = (
+    not is_admin_user
+    and not is_bestuur_user
+    and not is_extern_user
+    and roster.has_all_games_access(roster_df, player_name)
+)
 
 # Twizzit's file_uploader fallback (when no local CSV exists) only ever shows for
 # admin — regular players never see/trigger that upload control
 calendar_df = match_view.merge_twizzit(calendar_df, TWIZZIT_CSV_PATH, OWN_TEAM_PREFIX, allow_upload=is_admin_user)
 
 with st.container(key="header_row"):
-    theme.header_bar(player_name, ["Alle thuiswedstrijden"] if (is_admin_user or is_bestuur_user) else player_teams)
+    all_matches_label = is_admin_user or is_bestuur_user or is_extern_user or all_games_user
+    theme.header_bar(player_name, ["Alle thuiswedstrijden"] if all_matches_label else player_teams)
     auth.logout_button()
 
-if is_admin_user or is_bestuur_user:
-    # admin and Bestuur see every home match, across all teams — no age/eligibility
-    # scoping. Bestuur is read-only from here on (see make_match_dialog)
+if is_admin_user or is_bestuur_user or is_extern_user:
+    # admin, Bestuur and Extern see every home match, across all teams — no
+    # age/eligibility scoping. Bestuur is read-only from here on (see
+    # make_match_dialog); Extern can assign (typing a real name), admin can
+    # additionally remove anyone's assignment
     kalender = calendar_df[calendar_df["isHome"]].copy()
     kalender["Type"] = "Beschikbaar"
 else:
-    kalender = match_view.build_kalender(calendar_df, player_teams, all_games=is_coach_user)
+    kalender = match_view.build_kalender(calendar_df, player_teams, all_games=all_games_user)
 
 # toekomstige wedstrijden — vanaf vandaag (op datum, niet tijdstip, zodat een
 # wedstrijd die vandaag al bezig/voorbij is nog zichtbaar blijft, en het volledige

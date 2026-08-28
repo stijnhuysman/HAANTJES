@@ -19,7 +19,7 @@ import streamlit as st
 from streamlit_local_storage import LocalStorage
 
 from src import roster as roster_mod
-from src.match_view import ADMIN_NAME, BESTUUR_NAME, DEFAULT_ADMIN_PASSWORD
+from src.match_view import ADMIN_NAME, BESTUUR_NAME, DEFAULT_ADMIN_PASSWORD, EXTERN_NAME
 
 _LOGO_PATH = Path(__file__).resolve().parent.parent / "logo_haantjes.jpg"
 
@@ -47,12 +47,16 @@ def login_gate(roster, team_options):
     if name == BESTUUR_NAME:
         return BESTUUR_NAME, []
 
+    if name == EXTERN_NAME:
+        return EXTERN_NAME, []
+
     if name and name in all_names:
         teams = [t for t in roster_mod.teams_for_player(roster, name) if t in team_options]
-        # a coach doesn't need their own team to have matches — they're eligible
-        # to referee every other team's home matches regardless (see match_view's
-        # all_games bypass), so an empty teams list shouldn't block login
-        if teams or roster_mod.is_coach(roster, name):
+        # a coach (or "Extern"-team member) doesn't need their own team to have
+        # matches — they're eligible to referee every other team's home matches
+        # regardless (see match_view's all_games bypass), so an empty teams list
+        # shouldn't block login
+        if teams or roster_mod.has_all_games_access(roster, name):
             return name, teams
 
     # --- Login screen: centered card, like a mobile app's welcome/login page ---
@@ -100,7 +104,7 @@ def login_gate(roster, team_options):
             # step 1: just the name-picker, nothing else (roster names + admin)
             input_name = st.selectbox(
                 "Jouw naam",
-                options=all_names + [BESTUUR_NAME, ADMIN_NAME],
+                options=all_names + [EXTERN_NAME, BESTUUR_NAME, ADMIN_NAME],
                 index=None,
                 placeholder="Tik je voornaam in...",
                 label_visibility="collapsed",
@@ -135,6 +139,19 @@ def login_gate(roster, team_options):
             if st.button("⬅️ Andere naam", key="login_pick_again"):
                 st.session_state["login_picked_name"] = None
                 st.rerun()
+        elif picked == EXTERN_NAME:
+            # Extern: no password, no team-eligibility check, and unlike Bestuur
+            # it's NOT read-only — see match_view.make_match_dialog for how it
+            # assigns (types a real name into "add someone else" instead of a
+            # self-assign button, since "player_name" here is just "Extern")
+            if st.button(f"➡️ Inloggen als {picked}", use_container_width=True, type="primary"):
+                ls.setItem("ref_player_name", picked, key="set_ref_player_name")
+                st.session_state["player_name"] = picked
+                st.session_state["login_picked_name"] = None
+                st.rerun()
+            if st.button("⬅️ Andere naam", key="login_pick_again"):
+                st.session_state["login_picked_name"] = None
+                st.rerun()
         else:
             # step 2: the picker is replaced by a single "Inloggen" button —
             # only a warning appears if this player currently has no matches.
@@ -142,8 +159,8 @@ def login_gate(roster, team_options):
             # team's home matches regardless of whether their own team has
             # any games right now, so an empty preview shouldn't block them.
             preview_teams = [t for t in roster_mod.teams_for_player(roster, picked) if t in team_options]
-            is_coach_pick = roster_mod.is_coach(roster, picked)
-            if not preview_teams and not is_coach_pick:
+            is_all_games_pick = roster_mod.has_all_games_access(roster, picked)
+            if not preview_teams and not is_all_games_pick:
                 st.warning(f"Voor {picked}'s team(en) zijn momenteel geen wedstrijden gevonden.")
             elif st.button(f"➡️ Inloggen als {picked}", use_container_width=True, type="primary"):
                 ls.setItem("ref_player_name", picked, key="set_ref_player_name")

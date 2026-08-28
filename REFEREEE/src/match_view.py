@@ -25,6 +25,14 @@ ADMIN_NAME = "admin"
 # anyone's assignment. No password gate: unlike admin it can't change anything.
 BESTUUR_NAME = "Bestuur"
 
+# Generic pseudo-user for volunteer refs with no personal roster entry: same
+# all-matches view as admin/Bestuur (no age/eligibility scoping), and can add
+# themselves as a referee — but since "player_name" here is the literal string
+# "Extern" rather than a real name, the normal self-assign button (which would
+# record "Extern" itself as the ref) is hidden; they type their real name into
+# the existing "add someone else" field instead. No password gate.
+EXTERN_NAME = "Extern"
+
 REQUIRED_REFS = 2
 
 COLOR_OWN = "#1f77b4"     # blue — your own team's match, informational only
@@ -365,6 +373,7 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
     read-only overview for the board."""
     is_admin = player_name == ADMIN_NAME
     is_bestuur = player_name == BESTUUR_NAME
+    is_extern = player_name == EXTERN_NAME
 
     @st.dialog("Wedstrijd details")
     def _match_dialog(wedguid):
@@ -433,7 +442,7 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
                 assignments_store.unassign(wedguid, player_name)
                 st.success("Toewijzing verwijderd.")
                 st.rerun()
-        elif not status["is_full"]:
+        elif not status["is_full"] and not is_extern:
             if st.button("➕ Wijs mezelf toe als scheidsrechter", use_container_width=True, type="primary"):
                 assignments_store.assign(wedguid, player_name, ",".join(player_teams))
                 st.success("Toegewezen!")
