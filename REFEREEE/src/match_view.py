@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-from src import assignments_store, data_loader, roster, textstyle, vbl_store
+from src import assignments_store, data_loader, roster, textstyle, vbl_store, vbl_sync
 from src.crosscheck import cross_check_referees
 from src.vbl_source import OWN_CLUB_FULLNAME, _extract_own_team_code, _parse_agegroup
 
@@ -130,7 +130,13 @@ def load_vbl_calendar() -> pd.DataFrame:
     """Reads the daily-synced VBL snapshot (src/vbl_store.py, refreshed by
     sync_vbl.py) rather than hitting the live VBL API on every page load — VBL
     is the only source allowed to overwrite referee assignments in this app,
-    so that snapshot, not a per-request fetch, is what's authoritative here."""
+    so that snapshot, not a per-request fetch, is what's authoritative here.
+
+    ensure_fresh() first updates the DB from Basketbal Vlaanderen if that
+    snapshot is missing or over a day old, so the app can't end up serving an
+    empty or stale calendar when the daily job didn't run. Normally the job has
+    already done it and this is a single MAX(synced_at) query."""
+    vbl_sync.ensure_fresh()
     return vbl_store.load_calendar()
 
 
