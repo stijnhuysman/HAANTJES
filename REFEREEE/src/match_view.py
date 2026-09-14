@@ -56,6 +56,17 @@ STATUS_LABELS = {
 BBVL_PRIORITY_TIERS = {14, 16, 18, 21, "SE"}
 _TIER_LABELS = {14: "U14", 16: "U16", 18: "U18", 21: "U21", "SE": "Senioren"}
 
+# Specific team codes (exact ownTeamCode match, e.g. "J16 B") that never wait on
+# BVBL regardless of tier — some B-teams are known to not get an official
+# assigned by Basketbal Vlaanderen, so the club self-assigns from day one for
+# them. Club-configurable via BBVL_EXCLUDED_TEAMS in .env / Streamlit Secrets
+# (comma-separated), no code change needed to add/remove a team.
+BBVL_EXCLUDED_TEAMS = {
+    code.strip().upper()
+    for code in os.environ.get("BBVL_EXCLUDED_TEAMS", "J16 B,J18 B").split(",")
+    if code.strip()
+}
+
 
 def _bbvl_open_cutoff(dt: pd.Timestamp) -> pd.Timestamp:
     """Wednesday 15:00 of dt's own week (Monday=0 .. Sunday=6, so Wednesday=2)."""
@@ -64,13 +75,18 @@ def _bbvl_open_cutoff(dt: pd.Timestamp) -> pd.Timestamp:
 
 
 def bbvl_priority_info(row):
-    """None for categories below U14, and for friendlies (OEFEN) regardless of
+    """None for categories below U14, for friendlies (OEFEN) regardless of
     category — BVBL only assigns officials to real competition matches, never
-    to a practice match, so those stay in the normal red/orange/grey situation.
-    Otherwise a dict with the tier label, the Wednesday-15:00 cutoff for this
-    specific match, and whether that cutoff has passed yet — used to show the
-    "toewijzing verwacht via BVBL" note and to gate self-assignment until then."""
+    to a practice match, so those stay in the normal red/orange/grey situation —
+    and for any team code listed in BBVL_EXCLUDED_TEAMS (e.g. "J16 B"), which
+    never waits on BVBL regardless of tier. Otherwise a dict with the tier
+    label, the Wednesday-15:00 cutoff for this specific match, and whether that
+    cutoff has passed yet — used to show the "toewijzing verwacht via BVBL"
+    note and to gate self-assignment until then."""
     if "OEFEN" in str(row.get("reeks", "")).upper():
+        return None
+    own_team_code = str(row.get("ownTeamCode", "") or "").strip().upper()
+    if own_team_code in BBVL_EXCLUDED_TEAMS:
         return None
     tier = roster.parse_age(row.get("ownTeamCode"))
     if tier not in BBVL_PRIORITY_TIERS:
