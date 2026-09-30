@@ -298,6 +298,25 @@ REF_COUNT_FILTERS = {
 AWAY_FILTER_LABEL = "🔵 Uitwedstrijden"
 
 
+# Admin "Club overzicht" category filter: label -> ownTeamCode prefixes (e.g. "HSE"
+# covers HSE A/B/C). None = every category. Categories not listed in any group
+# (e.g. G10, G12, M12, M14) only show under "Alle categorieën".
+CATEGORY_FILTERS = {
+    "Alle categorieën": None,
+    "Dames/Heren": ("HSE", "DSE"),
+    "J18/M19/J21": ("J18", "M19", "J21"),
+    "J16/M16/G14": ("J16", "M16", "G14"),
+}
+
+
+def filter_category(matches: pd.DataFrame, option: str) -> pd.DataFrame:
+    prefixes = CATEGORY_FILTERS.get(option)
+    if prefixes is None or matches.empty:
+        return matches
+    codes = matches["ownTeamCode"].fillna("").str.strip().str.upper()
+    return matches[codes.str.startswith(prefixes)]
+
+
 def ref_count(row, volunteers_by_match) -> int:
     entries = assigned_entries(volunteers_by_match, row["wedguid"], row["refFinal1"], row["refFinal2"], row.get("refSource"))
     return min(len(entries), REQUIRED_REFS)

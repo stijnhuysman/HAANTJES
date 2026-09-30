@@ -317,6 +317,11 @@ if is_admin_user:
             "waarin een potentiële ref speelt"
         )
         club_matches = match_view.build_club_overview(upcoming, roster_df)
+        category = st.segmented_control(
+            "Categorie", options=list(match_view.CATEGORY_FILTERS), default="Alle categorieën", required=True,
+            label_visibility="collapsed", key="adminclub_category",
+        )
+        club_matches = match_view.filter_category(club_matches, category)
         _admin_filtered_cards(
             club_matches, list(match_view.REF_COUNT_FILTERS) + [match_view.AWAY_FILTER_LABEL], key="adminclub"
         )
