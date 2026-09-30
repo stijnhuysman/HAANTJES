@@ -306,10 +306,19 @@ if is_admin_user:
     upcoming = calendar_df[calendar_df["DT"].dt.date >= date.today()]
 
     with tabs[3]:
-        st.caption("Alle thuiswedstrijden · filter op aantal toegewezen refs, los van BBVL-toewijzing")
+        st.caption(
+            "Alle thuiswedstrijden + uitwedstrijden van Dames/Heren (HSE/DSE) · "
+            "filter op aantal toegewezen refs, los van BBVL-toewijzing"
+        )
         home_matches = upcoming[upcoming["isHome"]].copy()
         home_matches["Type"] = "Beschikbaar"
-        _admin_filtered_cards(home_matches, list(match_view.REF_COUNT_FILTERS), key="adminhome")
+        # senior away matches as blue info cards, like in Club overzicht
+        senior_away = match_view.filter_category(upcoming[~upcoming["isHome"]], "Dames/Heren").copy()
+        senior_away["Type"] = "Mijn wedstrijd"
+        home_tab_matches = pd.concat([home_matches, senior_away], ignore_index=True).sort_values("DT")
+        _admin_filtered_cards(
+            home_tab_matches, list(match_view.REF_COUNT_FILTERS) + [match_view.AWAY_FILTER_LABEL], key="adminhome"
+        )
 
     with tabs[4]:
         st.caption(
