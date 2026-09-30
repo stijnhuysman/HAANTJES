@@ -339,6 +339,9 @@ MATCH_DURATION = pd.Timedelta(hours=1, minutes=30)
 HOME_CONFLICT_WINDOW = MATCH_DURATION
 AWAY_CONFLICT_WINDOW = pd.Timedelta(hours=3)
 
+# Categories left out of the Opties tab altogether (ownTeamCode prefixes).
+OPTIES_EXCLUDED_PREFIXES = ("G10", "G12")
+
 
 def upcoming_weekend(today) -> tuple:
     """(zaterdag, zondag) of the lopend weekend when today is already zaterdag/

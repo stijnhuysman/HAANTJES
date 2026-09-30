@@ -368,7 +368,10 @@ if is_admin_user:
         )
         # every match of the weekend (home + away) — needed to check who's playing when
         weekend_matches = upcoming[upcoming["DT"].dt.date.isin([saturday, sunday])]
-        weekend_home = weekend_matches[weekend_matches["isHome"]].copy()
+        weekend_home = weekend_matches[
+            weekend_matches["isHome"]
+            & ~weekend_matches["ownTeamCode"].fillna("").str.startswith(match_view.OPTIES_EXCLUDED_PREFIXES)
+        ].copy()
         weekend_home["Type"] = "Beschikbaar"
         if weekend_home.empty:
             st.info("Geen thuiswedstrijden dit weekend.")
