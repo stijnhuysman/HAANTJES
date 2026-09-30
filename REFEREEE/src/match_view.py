@@ -4,6 +4,7 @@ page and the "Weekends" (timegrid) page, so the two stay in sync — same colors
 same assignment rules, same detail dialog — without duplicating the logic.
 """
 import os
+from datetime import timedelta
 
 import pandas as pd
 import streamlit as st
@@ -19,6 +20,18 @@ from src.vbl_source import OWN_CLUB_FULLNAME, _extract_own_team_code, _parse_age
 # the password that actually protects the live app is never committed anywhere.
 DEFAULT_ADMIN_PASSWORD = "Haantjes9700"
 ADMIN_NAME = "admin"
+
+# Second admin login (ADMIN_PASSWORD_2, same public-fallback caveat as above): the
+# same admin view and powers, except that adding a referee is a pick from the
+# players the ref hierarchy allows for that match and who are free at that time
+# (see ref_options) — no free-text name. A separate pseudo-user rather than a
+# flag on "admin", so it can't be turned into full admin by clearing a flag.
+DEFAULT_ADMIN_HIERARCHY_PASSWORD = "1111"
+ADMIN_HIERARCHY_NAME = "admin-hiërarchie"
+
+
+def is_admin_name(name) -> bool:
+    return name in (ADMIN_NAME, ADMIN_HIERARCHY_NAME)
 
 # Board members: same all-matches view as admin (no age/eligibility scoping),
 # but strictly read-only — no self-assign, no adding someone else, no removing
@@ -317,6 +330,107 @@ def filter_category(matches: pd.DataFrame, option: str) -> pd.DataFrame:
     return matches[codes.str.startswith(prefixes)]
 
 
+# --- Admin "Opties" tab: which teams/players could referee a match ---------------
+
+MATCH_DURATION = pd.Timedelta(hours=1, minutes=30)
+# A player's own match blocks them from refereeing when the two overlap. An own
+# home match only blocks its own time slot; an own away match also blocks the
+# travel time on either side of it.
+HOME_CONFLICT_WINDOW = MATCH_DURATION
+AWAY_CONFLICT_WINDOW = pd.Timedelta(hours=3)
+
+
+def upcoming_weekend(today) -> tuple:
+    """(zaterdag, zondag) of the lopend weekend when today is already zaterdag/
+    zondag, otherwise of the next one."""
+    weekday = today.weekday()  # maandag=0 ... zondag=6
+    saturday = today - timedelta(days=weekday - 5) if weekday >= 5 else today + timedelta(days=5 - weekday)
+    return saturday, saturday + timedelta(days=1)
+
+
+def _conflicts(own_match, dt) -> bool:
+    window = HOME_CONFLICT_WINDOW if own_match["isHome"] else AWAY_CONFLICT_WINDOW
+    return abs(own_match["DT"] - dt) < window
+
+
+def ref_options(match, weekend_matches: pd.DataFrame, roster_df: pd.DataFrame, volunteers_by_match) -> list:
+    """Candidate referees for one match, grouped per team and ordered
+    hierarchically — the team closest in age above the match first, seniors last.
+
+    A player is a candidate when their own tier may referee this match's tier
+    (roster.ELIGIBLE_TO_REF), they don't play in the match's own team, none of
+    their teams has a match that overlaps it (see _conflicts), and they aren't
+    already assigned to another overlapping match. Each player is listed under
+    their highest playing team — the one that sets their own tier. Pure coaches
+    (no playing team) are left out: they can referee anything, so they'd show
+    up under every match."""
+    match_tier = roster.parse_age(match["ownTeamCode"])
+    if match_tier is None:
+        return []
+
+    busy_as_ref = {
+        name
+        for _, other in weekend_matches.iterrows()
+        if other["wedguid"] != match["wedguid"] and abs(other["DT"] - match["DT"]) < MATCH_DURATION
+        for name in volunteers_by_match.get(other["wedguid"], [])
+    }
+
+    by_team = {}
+    for name, person in roster_df.groupby("name"):
+        playing_teams = list(person.loc[person["role"] == "Speler", "team"])
+        if not playing_teams:
+            continue
+        # eligibility follows the teams they PLAY in; being busy covers every team
+        # they're on, so a match they coach blocks them too
+        all_teams = list(person["team"])
+        own_tier = roster.own_tier_from_teams(playing_teams)
+        if match_tier not in roster.eligible_ref_tiers(own_tier):
+            continue
+        if match["ownTeamCode"] in all_teams or name in busy_as_ref:
+            continue
+        own_matches = weekend_matches[weekend_matches["ownTeamCode"].isin(all_teams)]
+        if any(_conflicts(m, match["DT"]) for _, m in own_matches.iterrows()):
+            continue
+        home_team = sorted(t for t in playing_teams if roster.parse_age(t) == own_tier)[0]
+        by_team.setdefault(home_team, []).append(name)
+
+    options = []
+    for team, names in by_team.items():
+        team_matches = weekend_matches[weekend_matches["ownTeamCode"] == team].sort_values("DT")
+        options.append({"team": team, "tier": roster.parse_age(team), "players": sorted(names), "team_matches": team_matches})
+    # AGE_LADDER runs senior -> youngest, so a higher index is closer in age
+    options.sort(key=lambda o: (-roster.AGE_LADDER.index(o["tier"]), o["team"]))
+    return options
+
+
+def options_subcard_html(options) -> str:
+    """The "opties" sub-card under a match card: one line per candidate team with
+    that team's own match(es) this weekend and the available players."""
+    if not options:
+        return (
+            '<div style="background:#f7f9fb; border-radius:10px; padding:0.5rem 0.75rem; margin:-0.2rem 0 0.8rem 0.9rem; '
+            'font-size:0.8rem; color:#999;">Geen beschikbare spelers volgens de ref-hiërarchie.</div>'
+        )
+    lines = []
+    for i, option in enumerate(options, start=1):
+        if option["team_matches"].empty:
+            own = "geen eigen match"
+        else:
+            own = ", ".join(
+                f"{day_label(m['DT'])} {m['DT'].strftime('%H:%M')} ({'thuis' if m['isHome'] else 'uit'})"
+                for _, m in option["team_matches"].iterrows()
+            )
+        lines.append(
+            f'<div style="margin-bottom:0.3rem;"><b>Optie {i}: {option["team"]}</b> · '
+            f'<span style="color:#666;">eigen match: {own}</span><br>'
+            f'<span style="color:#10243e;">{len(option["players"])} beschikbaar: {", ".join(option["players"])}</span></div>'
+        )
+    return (
+        '<div style="background:#f7f9fb; border-radius:10px; padding:0.55rem 0.75rem; margin:-0.2rem 0 0.8rem 0.9rem; '
+        f'font-size:0.8rem;">{"".join(lines)}</div>'
+    )
+
+
 def ref_count(row, volunteers_by_match) -> int:
     entries = assigned_entries(volunteers_by_match, row["wedguid"], row["refFinal1"], row["refFinal2"], row.get("refSource"))
     return min(len(entries), REQUIRED_REFS)
@@ -420,7 +534,9 @@ def build_events(kalender: pd.DataFrame, volunteers_by_match, player_name):
     return events
 
 
-def render_match_cards(matches: pd.DataFrame, volunteers_by_match, player_name, match_dialog, key_prefix: str = ""):
+def render_match_cards(
+    matches: pd.DataFrame, volunteers_by_match, player_name, match_dialog, key_prefix: str = "", below_card=None
+):
     """Renders each match as an info card grouped by day (team names, status badge,
     time/location/competition, ref names) with a button opening match_dialog —
     used by both the main match list and "Mijn toewijzingen". Card styling itself
@@ -429,7 +545,9 @@ def render_match_cards(matches: pd.DataFrame, volunteers_by_match, player_name, 
     in the same script run (only hides the inactive ones), so the same wedguid
     appearing in two tabs at once would otherwise collide on the same widget key.
     Admin capabilities (removing any assigned ref) live inside match_dialog
-    itself now — see make_match_dialog — rather than a separate button/dialog."""
+    itself now — see make_match_dialog — rather than a separate button/dialog.
+    below_card, if given, is called with each match row right after its card
+    (e.g. the admin "Opties" tab's sub-card)."""
     for _, day_matches in matches.groupby(matches["DT"].dt.date):
         day_matches = day_matches.sort_values("DT")
         st.markdown(
@@ -466,9 +584,11 @@ def render_match_cards(matches: pd.DataFrame, volunteers_by_match, player_name, 
                     match_dialog(row["wedguid"])
                 if st.button("👉 Details", key=f"open_{key_prefix}{row['wedguid']}"):
                     match_dialog(row["wedguid"])
+            if below_card is not None:
+                below_card(row)
 
 
-def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, player_teams):
+def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, player_teams, ref_candidates=None):
     """Returns a @st.dialog-decorated function(wedguid) closed over this page's
     state. When player_name == ADMIN_NAME, an extra "verwijder eender wie" control
     appears — normal users can only remove their own assignment, admin can remove
@@ -476,8 +596,13 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
     in our DB at all, so there's nothing here to actually remove for those).
     When player_name == BESTUUR_NAME, the dialog stops right after showing who's
     assigned — no self-assign, no adding someone else, no removing anyone: a pure
-    read-only overview for the board."""
-    is_admin = player_name == ADMIN_NAME
+    read-only overview for the board.
+    When player_name == ADMIN_HIERARCHY_NAME, ref_candidates(match_row) -> [(name,
+    label)] replaces the free-text "add someone else" field with a pick-list of
+    exactly those names (shown as their label), and there's no self-assign (the
+    pseudo-user isn't a real ref)."""
+    is_admin = is_admin_name(player_name)
+    is_hierarchy_admin = player_name == ADMIN_HIERARCHY_NAME
     is_bestuur = player_name == BESTUUR_NAME
     is_extern = player_name == EXTERN_NAME
 
@@ -548,7 +673,7 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
                 assignments_store.unassign(wedguid, player_name)
                 st.success("Toewijzing verwijderd.")
                 st.rerun()
-        elif not status["is_full"] and not is_extern:
+        elif not status["is_full"] and not is_extern and not is_hierarchy_admin:
             if st.button("➕ Wijs mezelf toe als scheidsrechter", use_container_width=True, type="primary"):
                 assignments_store.assign(wedguid, player_name, ",".join(player_teams))
                 st.success("Toegewezen!")
@@ -558,6 +683,22 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
             pass  # caption above already covers it — no add-other-name field either
         elif status["is_full"]:
             st.warning(f"Deze wedstrijd heeft al {REQUIRED_REFS} scheidsrechters — er kan niemand meer bij.")
+        elif is_hierarchy_admin and ref_candidates is not None:
+            st.divider()
+            assigned_lower = {n.lower() for n in names}
+            labels = {name: label for name, label in ref_candidates(m) if name.lower() not in assigned_lower}
+            if not labels:
+                st.caption("Geen beschikbare spelers volgens de ref-hiërarchie voor deze wedstrijd.")
+            else:
+                picked = st.selectbox(
+                    "Kies een scheidsrechter (volgens ref-hiërarchie, vrij op dat moment)",
+                    options=list(labels), format_func=labels.get, index=None,
+                    placeholder="Tik een naam of ploeg...", key=f"hier_{wedguid}",
+                )
+                if st.button("➕ Voeg toe", use_container_width=True, disabled=picked is None):
+                    assignments_store.assign(wedguid, picked, f"toegevoegd door {player_name}")
+                    st.success(f"{picked} toegevoegd!")
+                    st.rerun()
         else:
             st.divider()
             other_name = st.text_input("Naam van iemand anders toevoegen als scheidsrechter", key=f"other_{wedguid}")

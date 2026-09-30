@@ -8,12 +8,16 @@ Header: club logo + player name + team chips (one row). Below that, 3 tabs:
   - Komende weekends: a real calendar, zaterdag + zondag side by side.
   - Mijn toewijzingen: the matches where this player is assigned as referee.
 
-Logging in as "admin" (password-gated, see auth.ADMIN_NAME) bypasses all of that
+Logging in as "admin" (password-gated, see auth.ADMIN_NAME) — or with the second
+admin password as "admin-hiërarchie", which only differs in picking referees from
+a hierarchy-based list instead of typing any name — bypasses all of that
 scoping and shows every home match across every team instead, plus 2 extra tabs:
   - Thuiswedstrijden: every home match, filterable on geen ref / 1 ref / volzet
     (plain ref count, independent of the BBVL-wait state).
   - Club overzicht: those home matches plus the away matches of every team a
     potential ref plays for — the full club picture.
+  - Opties: the coming weekend's home matches, each with a sub-card listing the
+    teams/players who may referee it and aren't playing themselves at that time.
 
 Run with: streamlit run app.py
 """
@@ -115,7 +119,9 @@ if calendar_df.empty:
     st.stop()
 
 player_name, player_teams = auth.login_gate(roster_df, team_options)
-is_admin_user = player_name == auth.ADMIN_NAME
+# the hierarchy-restricted admin (second admin password) gets the same view and
+# powers as admin; only its "add a referee" control differs (see make_match_dialog)
+is_admin_user = match_view.is_admin_name(player_name)
 is_bestuur_user = player_name == match_view.BESTUUR_NAME
 is_extern_user = player_name == match_view.EXTERN_NAME
 # coaches and "Extern"-team roster members (e.g. Tijs Simoens) both get the same
@@ -152,11 +158,25 @@ else:
 kalender = kalender[kalender["DT"].dt.date >= date.today()]
 
 volunteers, volunteers_by_match = match_view.get_volunteers_by_match()
-match_dialog = match_view.make_match_dialog(kalender, volunteers_by_match, player_name, player_teams)
+
+
+def _hierarchy_candidates(match_row):
+    """Players the ref hierarchy allows for this match and who are free at that
+    time, in option order (closest team in age first) — the pick-list shown to
+    the hierarchy-restricted admin instead of a free-text name."""
+    same_day = calendar_df[calendar_df["DT"].dt.date == match_row["DT"].date()]
+    options = match_view.ref_options(match_row, same_day, roster_df, volunteers_by_match)
+    return [(name, f"{name} · {option['team']}") for option in options for name in option["players"]]
+
+
+ref_candidates = _hierarchy_candidates if player_name == match_view.ADMIN_HIERARCHY_NAME else None
+match_dialog = match_view.make_match_dialog(
+    kalender, volunteers_by_match, player_name, player_teams, ref_candidates=ref_candidates
+)
 
 tab_labels = ["📋 Lijst", "📆 Weekend", "✅ Toewijzingen"]
 if is_admin_user:
-    tab_labels += ["🏠 Thuiswedstrijden", "🏀 Club overzicht"]
+    tab_labels += ["🏠 Thuiswedstrijden", "🏀 Club overzicht", "🧩 Opties"]
 tabs = st.tabs(tab_labels)
 tab_list, tab_weekend, tab_mine = tabs[:3]
 
@@ -282,7 +302,9 @@ with tab_mine:
     else:
         mine_matches = calendar_df[calendar_df["wedguid"].isin(mine["match_key"])].copy()
         mine_matches["Type"] = "Beschikbaar"  # reuse the status-color machinery (never "Mijn wedstrijd")
-        mine_dialog = match_view.make_match_dialog(mine_matches, volunteers_by_match, player_name, player_teams)
+        mine_dialog = match_view.make_match_dialog(
+            mine_matches, volunteers_by_match, player_name, player_teams, ref_candidates=ref_candidates
+        )
         match_view.render_match_cards(mine_matches, volunteers_by_match, player_name, mine_dialog, key_prefix="mine_")
 
 
@@ -298,7 +320,9 @@ def _admin_filtered_cards(matches, filter_options, key):
     if filtered.empty:
         st.info("Geen wedstrijden gevonden voor deze selectie.")
         return
-    dialog = match_view.make_match_dialog(matches, volunteers_by_match, player_name, player_teams)
+    dialog = match_view.make_match_dialog(
+        matches, volunteers_by_match, player_name, player_teams, ref_candidates=ref_candidates
+    )
     match_view.render_match_cards(filtered, volunteers_by_match, player_name, dialog, key_prefix=f"{key}_")
 
 
@@ -334,3 +358,30 @@ if is_admin_user:
         _admin_filtered_cards(
             club_matches, list(match_view.REF_COUNT_FILTERS) + [match_view.AWAY_FILTER_LABEL], key="adminclub"
         )
+
+    with tabs[5]:
+        saturday, sunday = match_view.upcoming_weekend(date.today())
+        st.caption(
+            f"Thuiswedstrijden van het komend weekend ({saturday.strftime('%d/%m')} - {sunday.strftime('%d/%m')}) "
+            "met per wedstrijd de ploegen/spelers die mogen fluiten volgens de ref-hiërarchie "
+            "en zelf geen overlappende wedstrijd hebben"
+        )
+        # every match of the weekend (home + away) — needed to check who's playing when
+        weekend_matches = upcoming[upcoming["DT"].dt.date.isin([saturday, sunday])]
+        weekend_home = weekend_matches[weekend_matches["isHome"]].copy()
+        weekend_home["Type"] = "Beschikbaar"
+        if weekend_home.empty:
+            st.info("Geen thuiswedstrijden dit weekend.")
+        else:
+            options_dialog = match_view.make_match_dialog(
+                weekend_home, volunteers_by_match, player_name, player_teams, ref_candidates=ref_candidates
+            )
+
+            def _options_subcard(row):
+                options = match_view.ref_options(row, weekend_matches, roster_df, volunteers_by_match)
+                st.markdown(match_view.options_subcard_html(options), unsafe_allow_html=True)
+
+            match_view.render_match_cards(
+                weekend_home, volunteers_by_match, player_name, options_dialog,
+                key_prefix="adminopties_", below_card=_options_subcard,
+            )

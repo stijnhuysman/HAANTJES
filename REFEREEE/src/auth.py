@@ -19,7 +19,14 @@ import streamlit as st
 from streamlit_local_storage import LocalStorage
 
 from src import roster as roster_mod
-from src.match_view import ADMIN_NAME, BESTUUR_NAME, DEFAULT_ADMIN_PASSWORD, EXTERN_NAME
+from src.match_view import (
+    ADMIN_HIERARCHY_NAME,
+    ADMIN_NAME,
+    BESTUUR_NAME,
+    DEFAULT_ADMIN_HIERARCHY_PASSWORD,
+    DEFAULT_ADMIN_PASSWORD,
+    EXTERN_NAME,
+)
 
 _LOGO_PATH = Path(__file__).resolve().parent.parent / "logo_haantjes.jpg"
 
@@ -43,6 +50,9 @@ def login_gate(roster, team_options):
 
     if name == ADMIN_NAME:
         return ADMIN_NAME, []
+
+    if name == ADMIN_HIERARCHY_NAME:
+        return ADMIN_HIERARCHY_NAME, []
 
     if name == BESTUUR_NAME:
         return BESTUUR_NAME, []
@@ -114,13 +124,22 @@ def login_gate(roster, team_options):
                 st.session_state["login_picked_name"] = input_name
                 st.rerun()
         elif picked == ADMIN_NAME:
-            # admin: password-gated instead of the normal team-eligibility check
+            # admin: password-gated instead of the normal team-eligibility check.
+            # The second password logs in as the hierarchy-restricted admin
+            # (see match_view.ADMIN_HIERARCHY_NAME) instead of full admin.
             pw = st.text_input("Admin wachtwoord", type="password", key="login_admin_pw")
             if st.button("🔓 Inloggen als admin", use_container_width=True, type="primary"):
                 admin_password = os.environ.get("ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
+                hierarchy_password = os.environ.get("ADMIN_PASSWORD_2", DEFAULT_ADMIN_HIERARCHY_PASSWORD)
                 if pw == admin_password:
-                    ls.setItem("ref_player_name", ADMIN_NAME, key="set_ref_player_name")
-                    st.session_state["player_name"] = ADMIN_NAME
+                    logged_in_as = ADMIN_NAME
+                elif pw == hierarchy_password:
+                    logged_in_as = ADMIN_HIERARCHY_NAME
+                else:
+                    logged_in_as = None
+                if logged_in_as:
+                    ls.setItem("ref_player_name", logged_in_as, key="set_ref_player_name")
+                    st.session_state["player_name"] = logged_in_as
                     st.session_state["login_picked_name"] = None
                     st.rerun()
                 else:
