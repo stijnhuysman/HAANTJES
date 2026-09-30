@@ -343,6 +343,16 @@ AWAY_CONFLICT_WINDOW = pd.Timedelta(hours=3)
 OPTIES_EXCLUDED_PREFIXES = ("G10", "G12")
 
 
+def needs_club_refs(row, volunteers_by_match) -> bool:
+    """True when a match still needs club referees: Basketbal Vlaanderen hasn't
+    aangeduid any ref for it, and it has fewer than REQUIRED_REFS club refs
+    (Twizzit-only officials and volunteers — everything not VBL-sourced)."""
+    entries = assigned_entries(volunteers_by_match, row["wedguid"], row["refFinal1"], row["refFinal2"], row.get("refSource"))
+    if any(e["vbl"] for e in entries):
+        return False
+    return len(entries) < REQUIRED_REFS
+
+
 def upcoming_weekend(today) -> tuple:
     """(zaterdag, zondag) of the lopend weekend when today is already zaterdag/
     zondag, otherwise of the next one."""

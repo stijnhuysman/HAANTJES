@@ -363,8 +363,8 @@ if is_admin_user:
         saturday, sunday = match_view.upcoming_weekend(date.today())
         st.caption(
             f"Thuiswedstrijden van het komend weekend ({saturday.strftime('%d/%m')} - {sunday.strftime('%d/%m')}) "
-            "met per wedstrijd de ploegen/spelers die mogen fluiten volgens de ref-hiërarchie "
-            "en zelf geen overlappende wedstrijd hebben"
+            "zonder BVBL-ref en met nog 0 of 1 clubref, met per wedstrijd de ploegen/spelers die mogen "
+            "fluiten volgens de ref-hiërarchie en zelf geen overlappende wedstrijd hebben"
         )
         # every match of the weekend (home + away) — needed to check who's playing when
         weekend_matches = upcoming[upcoming["DT"].dt.date.isin([saturday, sunday])]
@@ -372,9 +372,14 @@ if is_admin_user:
             weekend_matches["isHome"]
             & ~weekend_matches["ownTeamCode"].fillna("").str.startswith(match_view.OPTIES_EXCLUDED_PREFIXES)
         ].copy()
+        # only matches that still need club refs: no BVBL ref yet, and not volzet
+        if not weekend_home.empty:
+            weekend_home = weekend_home[
+                weekend_home.apply(lambda row: match_view.needs_club_refs(row, volunteers_by_match), axis=1)
+            ]
         weekend_home["Type"] = "Beschikbaar"
         if weekend_home.empty:
-            st.info("Geen thuiswedstrijden dit weekend.")
+            st.info("Geen thuiswedstrijden dit weekend die nog clubrefs nodig hebben.")
         else:
             options_dialog = match_view.make_match_dialog(
                 weekend_home, volunteers_by_match, player_name, player_teams, ref_candidates=ref_candidates
