@@ -259,6 +259,66 @@ def build_kalender(calendar_df: pd.DataFrame, player_teams, all_games: bool = Fa
     return pd.concat([own_matches, other_home], ignore_index=True).sort_values("DT")
 
 
+def potential_ref_teams(roster_df: pd.DataFrame) -> set:
+    """Every team with at least one member who could referee somewhere — coaches/
+    "Extern" (all games), or players whose own tier has eligible target tiers."""
+    teams = set()
+    for name, person in roster_df.groupby("name"):
+        person_teams = list(person["team"])
+        if roster.has_all_games_access(roster_df, name) or roster.eligible_ref_tiers(
+            roster.own_tier_from_teams(person_teams)
+        ):
+            teams.update(person_teams)
+    return teams
+
+
+def build_club_overview(calendar_df: pd.DataFrame, roster_df: pd.DataFrame) -> pd.DataFrame:
+    """Admin's full club overview: every home match (the ones needing a ref), plus
+    every away match of a team a potential ref plays for — so it's visible when
+    those refs are themselves away and can't be assigned. Away matches reuse the
+    "Mijn wedstrijd" type: blue, informational only, no assign controls."""
+    home = calendar_df[calendar_df["isHome"]].copy()
+    home["Type"] = "Beschikbaar"
+    away = calendar_df[
+        ~calendar_df["isHome"] & calendar_df["ownTeamCode"].isin(potential_ref_teams(roster_df))
+    ].copy()
+    away["Type"] = "Mijn wedstrijd"
+    return pd.concat([home, away], ignore_index=True).sort_values("DT")
+
+
+# Admin filters on the plain number of assigned refs — deliberately independent of
+# the purple "wss BBVL" state, which hides a match's real 0/1/2 count until the
+# BVBL cutoff. None = no ref-count filter; "away" = only the away matches.
+REF_COUNT_FILTERS = {
+    "Alles": None,
+    "🔴 Geen ref": 0,
+    "🟠 1 ref": 1,
+    "⚪ Volzet": REQUIRED_REFS,
+}
+AWAY_FILTER_LABEL = "🔵 Uitwedstrijden"
+
+
+def ref_count(row, volunteers_by_match) -> int:
+    entries = assigned_entries(volunteers_by_match, row["wedguid"], row["refFinal1"], row["refFinal2"], row.get("refSource"))
+    return min(len(entries), REQUIRED_REFS)
+
+
+def filter_matches(matches: pd.DataFrame, volunteers_by_match, option: str) -> pd.DataFrame:
+    """Applies an admin filter (REF_COUNT_FILTERS key or AWAY_FILTER_LABEL). Ref-count
+    options only ever return home matches — away matches have no ref to count."""
+    if matches.empty:
+        return matches
+    if option == AWAY_FILTER_LABEL:
+        return matches[~matches["isHome"]]
+    wanted = REF_COUNT_FILTERS.get(option)
+    if wanted is None:
+        return matches
+    home = matches[matches["isHome"]]
+    if home.empty:
+        return home
+    return home[home.apply(lambda row: ref_count(row, volunteers_by_match) == wanted, axis=1)]
+
+
 def get_volunteers_by_match():
     volunteers = assignments_store.get_assignments()
     by_match = (

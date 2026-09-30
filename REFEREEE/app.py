@@ -9,7 +9,11 @@ Header: club logo + player name + team chips (one row). Below that, 3 tabs:
   - Mijn toewijzingen: the matches where this player is assigned as referee.
 
 Logging in as "admin" (password-gated, see auth.ADMIN_NAME) bypasses all of that
-scoping and shows every home match across every team instead.
+scoping and shows every home match across every team instead, plus 2 extra tabs:
+  - Thuiswedstrijden: every home match, filterable on geen ref / 1 ref / volzet
+    (plain ref count, independent of the BBVL-wait state).
+  - Club overzicht: those home matches plus the away matches of every team a
+    potential ref plays for — the full club picture.
 
 Run with: streamlit run app.py
 """
@@ -150,7 +154,11 @@ kalender = kalender[kalender["DT"].dt.date >= date.today()]
 volunteers, volunteers_by_match = match_view.get_volunteers_by_match()
 match_dialog = match_view.make_match_dialog(kalender, volunteers_by_match, player_name, player_teams)
 
-tab_list, tab_weekend, tab_mine = st.tabs(["📋 Lijst", "📆 Weekend", "✅ Toewijzingen"])
+tab_labels = ["📋 Lijst", "📆 Weekend", "✅ Toewijzingen"]
+if is_admin_user:
+    tab_labels += ["🏠 Thuiswedstrijden", "🏀 Club overzicht"]
+tabs = st.tabs(tab_labels)
+tab_list, tab_weekend, tab_mine = tabs[:3]
 
 # card/legend colors (🔴/🟠/⚪/🔵) stay as-is — only the filter groups 🔴+🟠 together
 STATUS_FILTER_ICONS = {
@@ -276,3 +284,39 @@ with tab_mine:
         mine_matches["Type"] = "Beschikbaar"  # reuse the status-color machinery (never "Mijn wedstrijd")
         mine_dialog = match_view.make_match_dialog(mine_matches, volunteers_by_match, player_name, player_teams)
         match_view.render_match_cards(mine_matches, volunteers_by_match, player_name, mine_dialog, key_prefix="mine_")
+
+
+def _admin_filtered_cards(matches, filter_options, key):
+    """Filter control + match cards for the admin-only tabs. Filters on the plain
+    ref count (see match_view.REF_COUNT_FILTERS), not on the BBVL-aware card color."""
+    option = st.segmented_control(
+        "Filter", options=filter_options, default="Alles", required=True,
+        label_visibility="collapsed", key=f"{key}_filter",
+    )
+    filtered = match_view.filter_matches(matches, volunteers_by_match, option)
+    st.caption(f"{len(filtered)} wedstrijd(en)")
+    if filtered.empty:
+        st.info("Geen wedstrijden gevonden voor deze selectie.")
+        return
+    dialog = match_view.make_match_dialog(matches, volunteers_by_match, player_name, player_teams)
+    match_view.render_match_cards(filtered, volunteers_by_match, player_name, dialog, key_prefix=f"{key}_")
+
+
+if is_admin_user:
+    upcoming = calendar_df[calendar_df["DT"].dt.date >= date.today()]
+
+    with tabs[3]:
+        st.caption("Alle thuiswedstrijden · filter op aantal toegewezen refs, los van BBVL-toewijzing")
+        home_matches = upcoming[upcoming["isHome"]].copy()
+        home_matches["Type"] = "Beschikbaar"
+        _admin_filtered_cards(home_matches, list(match_view.REF_COUNT_FILTERS), key="adminhome")
+
+    with tabs[4]:
+        st.caption(
+            "Thuiswedstrijden die een ref nodig hebben + uitwedstrijden van ploegen "
+            "waarin een potentiële ref speelt"
+        )
+        club_matches = match_view.build_club_overview(upcoming, roster_df)
+        _admin_filtered_cards(
+            club_matches, list(match_view.REF_COUNT_FILTERS) + [match_view.AWAY_FILTER_LABEL], key="adminclub"
+        )

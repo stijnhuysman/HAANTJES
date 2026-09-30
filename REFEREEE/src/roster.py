@@ -55,6 +55,20 @@ MANUAL_ADDITIONS = [
     {"name": "Tijs Simoens", "photo": None, "team": EXTERN_TEAM, "role": "Speler"},
 ]
 
+# Extra teams for people who ARE in the sheet, but whose Twizzit membership doesn't
+# list every team they actually play for (e.g. B-team players who also line up
+# for the A-team). Merged in load_roster() as extra (person, team) rows, reusing
+# the person's photo from their existing rows.
+MANUAL_TEAM_ADDITIONS = {
+    "HSE A": [
+        "Vic Huysman",
+        "Bogdan Verstraete",
+        "Milan De Brabander",
+        "Matti Bogaert",
+        "Brecht Van Glabeke",
+    ],
+}
+
 
 def parse_age(team_code: str):
     """'DSE A'/'HSE B' -> 'SE'; 'J21 A' -> 21; 'M19 A' -> 18 (snapped to nearest rung);
@@ -102,7 +116,23 @@ def load_roster() -> pd.DataFrame:
     df["ageTier"] = df["team"].apply(parse_age)
     manual = pd.DataFrame(MANUAL_ADDITIONS)
     manual["ageTier"] = manual["team"].apply(parse_age)
-    return pd.concat([df, manual], ignore_index=True)
+    return pd.concat([df, manual, _manual_team_rows(df)], ignore_index=True)
+
+
+def _manual_team_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """MANUAL_TEAM_ADDITIONS as roster rows — skipping any (person, team) the sheet
+    already has, so nothing is doubled once Twizzit catches up."""
+    existing = set(zip(df["name"], df["team"]))
+    rows = []
+    for team, names in MANUAL_TEAM_ADDITIONS.items():
+        for name in names:
+            if (name, team) in existing:
+                continue
+            photos = df.loc[df["name"] == name, "photo"].dropna()
+            rows.append({"name": name, "photo": photos.iloc[0] if not photos.empty else None, "team": team, "role": "Speler"})
+    extra = pd.DataFrame(rows, columns=["name", "photo", "team", "role"])
+    extra["ageTier"] = extra["team"].apply(parse_age)
+    return extra
 
 
 def player_names(roster: pd.DataFrame):
