@@ -403,31 +403,38 @@ def ref_options(match, weekend_matches: pd.DataFrame, roster_df: pd.DataFrame, v
     return options
 
 
+_NL_WEEKDAYS_SHORT = ["ma", "di", "wo", "do", "vr", "za", "zo"]
+
+
 def options_subcard_html(options) -> str:
-    """The "opties" sub-card under a match card: one line per candidate team with
-    that team's own match(es) this weekend and the available players."""
+    """The "opties" sub-card under a match card: one compact row per candidate team
+    (team + that team's own match this weekend); clicking a row folds open the
+    available players. Plain HTML <details>, so opening one causes no rerun."""
     if not options:
         return (
             '<div style="background:#f7f9fb; border-radius:10px; padding:0.5rem 0.75rem; margin:-0.2rem 0 0.8rem 0.9rem; '
             'font-size:0.8rem; color:#999;">Geen beschikbare spelers volgens de ref-hiërarchie.</div>'
         )
-    lines = []
+    rows = []
     for i, option in enumerate(options, start=1):
         if option["team_matches"].empty:
             own = "geen eigen match"
         else:
             own = ", ".join(
-                f"{day_label(m['DT'])} {m['DT'].strftime('%H:%M')} ({'thuis' if m['isHome'] else 'uit'})"
+                f"{_NL_WEEKDAYS_SHORT[m['DT'].weekday()]} {m['DT'].strftime('%H:%M')} {'thuis' if m['isHome'] else 'uit'}"
                 for _, m in option["team_matches"].iterrows()
             )
-        lines.append(
-            f'<div style="margin-bottom:0.3rem;"><b>Optie {i}: {option["team"]}</b> · '
-            f'<span style="color:#666;">eigen match: {own}</span><br>'
-            f'<span style="color:#10243e;">{len(option["players"])} beschikbaar: {", ".join(option["players"])}</span></div>'
+        players = "".join(f"<li>{name}</li>" for name in option["players"])
+        rows.append(
+            '<details style="border-bottom:1px solid #e6eaf0; padding:0.3rem 0;">'
+            '<summary style="cursor:pointer; list-style-position:inside;">'
+            f'<b>Optie {i} · {option["team"]}</b> <span style="color:#666;">· {own}</span></summary>'
+            f'<ul style="margin:0.3rem 0 0.2rem 1.1rem; padding:0; color:#10243e;">{players}</ul>'
+            "</details>"
         )
     return (
-        '<div style="background:#f7f9fb; border-radius:10px; padding:0.55rem 0.75rem; margin:-0.2rem 0 0.8rem 0.9rem; '
-        f'font-size:0.8rem;">{"".join(lines)}</div>'
+        '<div style="background:#f7f9fb; border-radius:10px; padding:0.35rem 0.75rem; margin:-0.2rem 0 0.8rem 0.9rem; '
+        f'font-size:0.8rem;">{"".join(rows)}</div>'
     )
 
 
