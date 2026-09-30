@@ -339,8 +339,10 @@ MATCH_DURATION = pd.Timedelta(hours=1, minutes=30)
 HOME_CONFLICT_WINDOW = MATCH_DURATION
 AWAY_CONFLICT_WINDOW = pd.Timedelta(hours=3)
 
-# Categories left out of the Opties tab altogether (ownTeamCode prefixes).
-OPTIES_EXCLUDED_PREFIXES = ("G10", "G12")
+# Age tiers never offered as referee options on the Opties tab: U10/U12 players
+# (e.g. G10, G12, M12) are too young to be proposed as ref, even where the ref
+# hierarchy itself would allow them. Their own matches are still listed.
+OPTIES_EXCLUDED_REF_TIERS = (10, 12)
 
 
 def needs_club_refs(row, volunteers_by_match) -> bool:
@@ -366,7 +368,9 @@ def _conflicts(own_match, dt) -> bool:
     return abs(own_match["DT"] - dt) < window
 
 
-def ref_options(match, weekend_matches: pd.DataFrame, roster_df: pd.DataFrame, volunteers_by_match) -> list:
+def ref_options(
+    match, weekend_matches: pd.DataFrame, roster_df: pd.DataFrame, volunteers_by_match, excluded_tiers=()
+) -> list:
     """Candidate referees for one match, grouped per team and ordered
     hierarchically — the team closest in age above the match first, seniors last.
 
@@ -376,7 +380,8 @@ def ref_options(match, weekend_matches: pd.DataFrame, roster_df: pd.DataFrame, v
     already assigned to another overlapping match. Each player is listed under
     their highest playing team — the one that sets their own tier. Pure coaches
     (no playing team) are left out: they can referee anything, so they'd show
-    up under every match."""
+    up under every match. Players whose own tier is in excluded_tiers are left
+    out too (see OPTIES_EXCLUDED_REF_TIERS)."""
     match_tier = roster.parse_age(match["ownTeamCode"])
     if match_tier is None:
         return []
@@ -397,7 +402,7 @@ def ref_options(match, weekend_matches: pd.DataFrame, roster_df: pd.DataFrame, v
         # they're on, so a match they coach blocks them too
         all_teams = list(person["team"])
         own_tier = roster.own_tier_from_teams(playing_teams)
-        if match_tier not in roster.eligible_ref_tiers(own_tier):
+        if own_tier in excluded_tiers or match_tier not in roster.eligible_ref_tiers(own_tier):
             continue
         if match["ownTeamCode"] in all_teams or name in busy_as_ref:
             continue

@@ -368,10 +368,7 @@ if is_admin_user:
         )
         # every match of the weekend (home + away) — needed to check who's playing when
         weekend_matches = upcoming[upcoming["DT"].dt.date.isin([saturday, sunday])]
-        weekend_home = weekend_matches[
-            weekend_matches["isHome"]
-            & ~weekend_matches["ownTeamCode"].fillna("").str.startswith(match_view.OPTIES_EXCLUDED_PREFIXES)
-        ].copy()
+        weekend_home = weekend_matches[weekend_matches["isHome"]].copy()
         # only matches that still need club refs: no BVBL ref yet, and not volzet
         if not weekend_home.empty:
             weekend_home = weekend_home[
@@ -386,7 +383,10 @@ if is_admin_user:
             )
 
             def _options_subcard(row):
-                options = match_view.ref_options(row, weekend_matches, roster_df, volunteers_by_match)
+                options = match_view.ref_options(
+                    row, weekend_matches, roster_df, volunteers_by_match,
+                    excluded_tiers=match_view.OPTIES_EXCLUDED_REF_TIERS,
+                )
                 st.markdown(match_view.options_subcard_html(options), unsafe_allow_html=True)
 
             match_view.render_match_cards(
