@@ -5,5 +5,5 @@ openpyxl
 pandas
 requests
 python-dotenv
-sqlalchemy<2.2
+sqlalchemy<2.1
 psycopg2-binary
