@@ -9,8 +9,8 @@ Header: club logo + player name + team chips (one row). Below that, 3 tabs:
   - Mijn toewijzingen: the matches where this player is assigned as referee.
 
 Logging in as "admin" (password-gated, see auth.ADMIN_NAME) — or with the second
-admin password as "admin-hiërarchie", which only differs in picking referees from
-a hierarchy-based list instead of typing any name — bypasses all of that
+admin password as "admin-hiërarchie", which only differs in also offering a
+hierarchy-based pick-list of referees next to typing any name — bypasses all of that
 scoping and shows every home match across every team instead, plus 2 extra tabs:
   - Thuiswedstrijden: every home match, filterable on geen ref / 1 ref / volzet
     (plain ref count, independent of the BBVL-wait state).
@@ -122,8 +122,8 @@ if calendar_df.empty:
     st.stop()
 
 player_name, player_teams = auth.login_gate(roster_df, team_options)
-# the hierarchy-restricted admin (second admin password) gets the same view and
-# powers as admin; only its "add a referee" control differs (see make_match_dialog)
+# the hierarchy admin (second admin password) gets the same view and powers as
+# admin; only its "add a referee" control differs (see make_match_dialog)
 is_admin_user = match_view.is_admin_name(player_name)
 is_bestuur_user = player_name == match_view.BESTUUR_NAME
 is_extern_user = player_name == match_view.EXTERN_NAME
@@ -166,7 +166,7 @@ volunteers, volunteers_by_match = match_view.get_volunteers_by_match()
 def _hierarchy_candidates(match_row):
     """Players the ref hierarchy allows for this match and who are free at that
     time, in option order (closest team in age first) — the pick-list shown to
-    the hierarchy-restricted admin instead of a free-text name."""
+    the hierarchy admin next to the free-text name field."""
     same_day = calendar_df[calendar_df["DT"].dt.date == match_row["DT"].date()]
     options = match_view.ref_options(match_row, same_day, roster_df, volunteers_by_match)
     return [(name, f"{name} · {option['team']}") for option in options for name in option["players"]]

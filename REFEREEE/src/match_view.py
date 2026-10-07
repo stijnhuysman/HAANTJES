@@ -22,10 +22,10 @@ DEFAULT_ADMIN_PASSWORD = "Haantjes9700"
 ADMIN_NAME = "admin"
 
 # Second admin login (ADMIN_PASSWORD_2, same public-fallback caveat as above): the
-# same admin view and powers, except that adding a referee is a pick from the
-# players the ref hierarchy allows for that match and who are free at that time
-# (see ref_options) — no free-text name. A separate pseudo-user rather than a
-# flag on "admin", so it can't be turned into full admin by clearing a flag.
+# same admin view and powers, plus a pick-list of the players the ref hierarchy
+# allows for that match and who are free at that time (see ref_options) next to
+# the free-text name field, and no self-assign. A separate pseudo-user rather
+# than a flag on "admin".
 DEFAULT_ADMIN_HIERARCHY_PASSWORD = "1111"
 ADMIN_HIERARCHY_NAME = "admin-hiërarchie"
 
@@ -678,8 +678,8 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
     assigned — no self-assign, no adding someone else, no removing anyone: a pure
     read-only overview for the board.
     When player_name == ADMIN_HIERARCHY_NAME, ref_candidates(match_row) -> [(name,
-    label)] replaces the free-text "add someone else" field with a pick-list of
-    exactly those names (shown as their label), and there's no self-assign (the
+    label)] adds a pick-list of exactly those names (shown as their label) above
+    the free-text "add someone else" field, and there's no self-assign (the
     pseudo-user isn't a real ref)."""
     is_admin = is_admin_name(player_name)
     is_hierarchy_admin = player_name == ADMIN_HIERARCHY_NAME
@@ -763,24 +763,24 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
             pass  # caption above already covers it — no add-other-name field either
         elif status["is_full"]:
             st.warning(f"Deze wedstrijd heeft al {REQUIRED_REFS} scheidsrechters — er kan niemand meer bij.")
-        elif is_hierarchy_admin and ref_candidates is not None:
-            st.divider()
-            assigned_lower = {n.lower() for n in names}
-            labels = {name: label for name, label in ref_candidates(m) if name.lower() not in assigned_lower}
-            if not labels:
-                st.caption("Geen beschikbare spelers volgens de ref-hiërarchie voor deze wedstrijd.")
-            else:
-                picked = st.selectbox(
-                    "Kies een scheidsrechter (volgens ref-hiërarchie, vrij op dat moment)",
-                    options=list(labels), format_func=labels.get, index=None,
-                    placeholder="Tik een naam of ploeg...", key=f"hier_{wedguid}",
-                )
-                if st.button("➕ Voeg toe", use_container_width=True, disabled=picked is None):
-                    assignments_store.assign(wedguid, picked, f"toegevoegd door {player_name}")
-                    st.success(f"{picked} toegevoegd!")
-                    st.rerun()
         else:
             st.divider()
+            if is_hierarchy_admin and ref_candidates is not None:
+                assigned_lower = {n.lower() for n in names}
+                labels = {name: label for name, label in ref_candidates(m) if name.lower() not in assigned_lower}
+                if not labels:
+                    st.caption("Geen beschikbare spelers volgens de ref-hiërarchie voor deze wedstrijd.")
+                else:
+                    picked = st.selectbox(
+                        "Kies een scheidsrechter (volgens ref-hiërarchie, vrij op dat moment)",
+                        options=list(labels), format_func=labels.get, index=None,
+                        placeholder="Tik een naam of ploeg...", key=f"hier_{wedguid}",
+                    )
+                    if st.button("➕ Voeg toe", use_container_width=True, disabled=picked is None):
+                        assignments_store.assign(wedguid, picked, f"toegevoegd door {player_name}")
+                        st.success(f"{picked} toegevoegd!")
+                        st.rerun()
+                st.caption("Of typ zelf een naam:")
             other_name = st.text_input("Naam van iemand anders toevoegen als scheidsrechter", key=f"other_{wedguid}")
             if st.button("➕ Voeg andere toe", use_container_width=True):
                 other_name = other_name.strip()
