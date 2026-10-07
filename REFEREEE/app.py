@@ -18,11 +18,14 @@ scoping and shows every home match across every team instead, plus 2 extra tabs:
     potential ref plays for — the full club picture.
   - Opties: the coming weekend's home matches, each with a sub-card listing the
     teams/players who may referee it and aren't playing themselves at that time.
+  - Spelers per ploeg: every player of a team with the number of matches they're
+    booked in for as club ref, with a WhatsApp-ready text to copy or forward.
 
 Run with: streamlit run app.py
 """
 import os
 from datetime import date, timedelta
+from urllib.parse import quote
 from pathlib import Path
 
 import pandas as pd
@@ -176,7 +179,7 @@ match_dialog = match_view.make_match_dialog(
 
 tab_labels = ["📋 Lijst", "📆 Weekend", "✅ Toewijzingen"]
 if is_admin_user:
-    tab_labels += ["🏠 Thuiswedstrijden", "🏀 Club overzicht", "🧩 Opties"]
+    tab_labels += ["🏠 Thuiswedstrijden", "🏀 Club overzicht", "🧩 Opties", "👥 Spelers per ploeg"]
 tabs = st.tabs(tab_labels)
 tab_list, tab_weekend, tab_mine = tabs[:3]
 
@@ -393,3 +396,39 @@ if is_admin_user:
                 weekend_home, volunteers_by_match, player_name, options_dialog,
                 key_prefix="adminopties_", below_card=_options_subcard,
             )
+
+    with tabs[6]:
+        st.caption(
+            "Aantal wedstrijden waarvoor elke speler zich als clubref heeft ingeschreven (BVBL-aanduidingen "
+            "tellen niet mee) · kopieer de tekst of stuur ze rechtstreeks door via WhatsApp"
+        )
+        booking_counts = match_view.player_booking_counts(roster_df, volunteers, calendar_df)
+        team_names = list(dict.fromkeys(booking_counts["team"]))
+        picked_team = st.selectbox("Ploeg", options=team_names, key="players_team")
+        with_coaches = st.toggle("Ook coaches tonen", value=False, key="players_with_coaches")
+
+        team_rows = booking_counts[booking_counts["team"] == picked_team]
+        if not with_coaches:
+            team_rows = team_rows[team_rows["role"] != "Coach"]
+
+        if team_rows.empty:
+            st.info("Geen spelers gevonden voor deze ploeg.")
+        else:
+            booked_total = int(team_rows["booked"].sum())
+            st.caption(
+                f"{len(team_rows)} speler(s) · {booked_total} boeking(en) in totaal · "
+                f"{int((team_rows['booked'] == 0).sum())} nog zonder boeking"
+            )
+            st.dataframe(
+                team_rows.rename(columns={"name": "Naam", "role": "Rol", "booked": "Geboekt", "upcoming": "Waarvan komend"})
+                [["Naam", "Rol", "Geboekt", "Waarvan komend"] if with_coaches else ["Naam", "Geboekt", "Waarvan komend"]],
+                hide_index=True, use_container_width=True,
+            )
+            whatsapp_text = match_view.whatsapp_team_text(picked_team, team_rows)
+            st.code(whatsapp_text, language=None)
+            st.link_button("📲 Stuur via WhatsApp", f"https://wa.me/?text={quote(whatsapp_text)}", use_container_width=True)
+
+        known_names = {n.strip().casefold() for n in roster_df["name"].dropna()}
+        unknown = sorted({n for n in volunteers["player_name"] if n.strip().casefold() not in known_names}) if not volunteers.empty else []
+        if unknown:
+            st.caption(f"Ingeschreven maar niet in een ploeg van de ledenlijst: {', '.join(unknown)}")

@@ -64,9 +64,14 @@ STATUS_LABELS = {
 
 # U14 and every category above it (U16, U18, U21, Senioren): Basketbal Vlaanderen
 # is expected to assign its own official referee for these first. Club
-# self-assignment for these categories only opens from Wednesday 15:00 of that
-# match's own week — and only if BVBL hasn't filled it in by then.
+# self-assignment for these categories only opens on the Tuesday before the
+# match — and only if BVBL hasn't filled it in by then.
 BBVL_PRIORITY_TIERS = {14, 16, 18, 21, "SE"}
+
+# Club self-assignment opens from the last occurrence of this weekday strictly
+# before the match (Monday=0, so Tuesday=1), at this hour.
+BBVL_OPEN_WEEKDAY = 1
+BBVL_OPEN_HOUR = 0
 _TIER_LABELS = {14: "U14", 16: "U16", 18: "U18", 21: "U21", "SE": "Senioren"}
 
 # Specific team codes (exact ownTeamCode match, e.g. "J16 B") that never wait on
@@ -82,9 +87,10 @@ BBVL_EXCLUDED_TEAMS = {
 
 
 def _bbvl_open_cutoff(dt: pd.Timestamp) -> pd.Timestamp:
-    """Wednesday 15:00 of dt's own week (Monday=0 .. Sunday=6, so Wednesday=2)."""
-    days_since_wednesday = (dt.weekday() - 2) % 7
-    return dt.normalize() - pd.Timedelta(days=days_since_wednesday) + pd.Timedelta(hours=15)
+    """00:00 of the Tuesday before the match — the latest Tuesday strictly before the
+    match's own day, so a Tuesday match opens a week earlier, not on the day itself."""
+    days_since_open_day = (dt.weekday() - BBVL_OPEN_WEEKDAY) % 7 or 7
+    return dt.normalize() - pd.Timedelta(days=days_since_open_day) + pd.Timedelta(hours=BBVL_OPEN_HOUR)
 
 
 def bbvl_priority_info(row):
@@ -93,9 +99,9 @@ def bbvl_priority_info(row):
     to a practice match, so those stay in the normal red/orange/grey situation —
     and for any team code listed in BBVL_EXCLUDED_TEAMS (e.g. "J16 B"), which
     never waits on BVBL regardless of tier. Otherwise a dict with the tier
-    label, the Wednesday-15:00 cutoff for this specific match, and whether that
-    cutoff has passed yet — used to show the "toewijzing verwacht via BVBL"
-    note and to gate self-assignment until then."""
+    label, the Tuesday-before-the-match cutoff for this specific match, and
+    whether that cutoff has passed yet — used to show the "toewijzing verwacht via
+    BVBL" note and to gate self-assignment until then."""
     if "OEFEN" in str(row.get("reeks", "")).upper():
         return None
     own_team_code = str(row.get("ownTeamCode", "") or "").strip().upper()
@@ -106,6 +112,8 @@ def bbvl_priority_info(row):
         return None
     cutoff = _bbvl_open_cutoff(row["DT"])
     return {"tier": tier, "label": _TIER_LABELS.get(tier, str(tier)), "cutoff": cutoff, "is_open": pd.Timestamp.now() >= cutoff}
+
+
 
 _NL_WEEKDAYS = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
 
@@ -297,6 +305,53 @@ def build_club_overview(calendar_df: pd.DataFrame, roster_df: pd.DataFrame) -> p
     ].copy()
     away["Type"] = "Mijn wedstrijd"
     return pd.concat([home, away], ignore_index=True).sort_values("DT")
+
+
+AGE_RANK = {tier: i for i, tier in enumerate(roster.AGE_LADDER)}
+
+
+def _team_sort_key(team: str):
+    """Seniors first, then U21 down to U10 — the roster's own age ladder; teams with
+    no age (Extern, ...) last."""
+    return (AGE_RANK.get(roster.parse_age(team), len(AGE_RANK)), team)
+
+
+def player_booking_counts(roster_df: pd.DataFrame, volunteers: pd.DataFrame, calendar_df: pd.DataFrame, today=None) -> pd.DataFrame:
+    """One row per (team, person) of the roster, with how many matches that person
+    is booked in for as club ref: `booked` = every assignment on record, `upcoming`
+    = those whose match is today or later. Counted per person, so someone on two
+    teams has the same numbers on both rows. Only club assignments count —
+    referees assigned by BVBL itself aren't in the assignments table. Names are
+    matched case-insensitively, since admins can type a name freely."""
+    today = today or pd.Timestamp.now().date()
+    key = lambda s: s.astype(str).str.strip().str.casefold()
+
+    if volunteers.empty:
+        counts = pd.DataFrame(columns=["nameKey", "booked", "upcoming"])
+    else:
+        match_date = calendar_df.drop_duplicates("wedguid").set_index("wedguid")["DT"]
+        booked = volunteers[["match_key", "player_name"]].copy()
+        booked["nameKey"] = key(booked["player_name"])
+        booked = booked.drop_duplicates(["match_key", "nameKey"])
+        booked["upcoming"] = booked["match_key"].map(match_date).map(lambda dt: pd.notna(dt) and dt.date() >= today)
+        counts = (booked.groupby("nameKey")
+                        .agg(booked=("match_key", "count"), upcoming=("upcoming", "sum")).reset_index())
+
+    people = roster_df[["name", "team", "role"]].drop_duplicates().copy()
+    people["nameKey"] = key(people["name"])
+    out = people.merge(counts, on="nameKey", how="left").drop(columns="nameKey")
+    out[["booked", "upcoming"]] = out[["booked", "upcoming"]].fillna(0).astype(int)
+    out["teamOrder"] = out["team"].map(_team_sort_key)
+    return out.sort_values(["teamOrder", "booked", "name"]).drop(columns="teamOrder").reset_index(drop=True)
+
+
+def whatsapp_team_text(team: str, rows: pd.DataFrame, today=None) -> str:
+    """WhatsApp-formatted message for one team (*bold* header, one bullet per
+    person with their booked-match count), ready to paste or forward."""
+    today = today or pd.Timestamp.now().date()
+    lines = [f"*{team}* — geboekte wedstrijden als scheids (stand {today.strftime('%d/%m/%Y')})"]
+    lines += [f"• {r['name']} — {r['booked']}" for _, r in rows.iterrows()]
+    return "\n".join(lines)
 
 
 # Admin filters on the plain number of assigned refs — deliberately independent of
@@ -505,7 +560,7 @@ def match_status(row, volunteers_by_match, player_name):
     Urgency-based coloring for choosable matches: red = nog geen ref, orange = nog
     1 ref nodig, grey = volzet — regardless of whether one of the names is you.
     U14+ matches get an extra purple "wss toewijzing door BBVL" status instead of
-    red/orange until that match's Wednesday-15:00 cutoff, since BVBL — not club
+    red/orange until the Tuesday before the match, since BVBL — not club
     volunteers — is expected to fill those first (see bbvl_priority_info)."""
     if row["Type"] == "Mijn wedstrijd":
         return {"color": COLOR_OWN, "icon": "🔵", "names": [], "entries": [], "am_i_assigned": False, "is_full": False}
@@ -685,12 +740,12 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
 
         # U14-and-up: club self-assignment (new signups only — removing your own
         # existing assignment always stays possible) is locked until BVBL's own
-        # window closes, Wednesday 15:00 of that match's week
+        # window closes, the Tuesday before the match
         locked = bool(priority) and not priority["is_open"] and not is_admin and not status["am_i_assigned"]
 
         if locked:
             st.caption(
-                f"Zelf kiezen kan vanaf woensdag {priority['cutoff'].strftime('%d/%m')} 15:00u, "
+                f"Zelf kiezen kan vanaf dinsdag {priority['cutoff'].strftime('%d/%m')}, "
                 "indien dan nog niet ingevuld door BVBL."
             )
         elif status["am_i_assigned"]:
