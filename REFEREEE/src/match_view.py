@@ -81,7 +81,7 @@ _TIER_LABELS = {14: "U14", 16: "U16", 18: "U18", 21: "U21", "SE": "Senioren"}
 # (comma-separated), no code change needed to add/remove a team.
 BBVL_EXCLUDED_TEAMS = {
     code.strip().upper()
-    for code in os.environ.get("BBVL_EXCLUDED_TEAMS", "J16 B,J18 B").split(",")
+    for code in os.environ.get("BBVL_EXCLUDED_TEAMS", "J18 B").split(",")
     if code.strip()
 }
 
