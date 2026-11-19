@@ -85,6 +85,16 @@ BBVL_EXCLUDED_TEAMS = {
     if code.strip()
 }
 
+# Specific dates that never wait on BVBL — e.g. the weekend 28/11 - 29/11
+# where the club opens self-assignment directly for players when no ref is assigned by BBVL.
+# Club-configurable via BBVL_EXCLUDED_DATES in .env / Streamlit Secrets
+# (comma-separated YYYY-MM-DD or DD/MM).
+BBVL_EXCLUDED_DATES = {
+    d.strip()
+    for d in os.environ.get("BBVL_EXCLUDED_DATES", "2026-11-28,2026-11-29,28/11,29/11").split(",")
+    if d.strip()
+}
+
 
 def _bbvl_open_cutoff(dt: pd.Timestamp) -> pd.Timestamp:
     """00:00 of the Tuesday before the match — the latest Tuesday strictly before the
@@ -107,10 +117,17 @@ def bbvl_priority_info(row):
     own_team_code = str(row.get("ownTeamCode", "") or "").strip().upper()
     if own_team_code in BBVL_EXCLUDED_TEAMS:
         return None
+    match_dt = row["DT"]
+    if (
+        match_dt.date() in (pd.to_datetime("2026-11-28").date(), pd.to_datetime("2026-11-29").date())
+        or match_dt.strftime("%Y-%m-%d") in BBVL_EXCLUDED_DATES
+        or match_dt.strftime("%d/%m") in BBVL_EXCLUDED_DATES
+    ):
+        return None
     tier = roster.parse_age(row.get("ownTeamCode"))
     if tier not in BBVL_PRIORITY_TIERS:
         return None
-    cutoff = _bbvl_open_cutoff(row["DT"])
+    cutoff = _bbvl_open_cutoff(match_dt)
     return {"tier": tier, "label": _TIER_LABELS.get(tier, str(tier)), "cutoff": cutoff, "is_open": pd.Timestamp.now() >= cutoff}
 
 
@@ -513,6 +530,8 @@ def options_subcard_html(options) -> str:
 
 def ref_count(row, volunteers_by_match) -> int:
     entries = assigned_entries(volunteers_by_match, row["wedguid"], row["refFinal1"], row["refFinal2"], row.get("refSource"))
+    if any(e["vbl"] for e in entries):
+        return REQUIRED_REFS
     return min(len(entries), REQUIRED_REFS)
 
 
@@ -567,7 +586,8 @@ def match_status(row, volunteers_by_match, player_name):
     entries = assigned_entries(volunteers_by_match, row["wedguid"], row["refFinal1"], row["refFinal2"], row.get("refSource"))
     names = [e["name"] for e in entries]
     am_i_assigned = player_name in names
-    is_full = len(names) >= REQUIRED_REFS
+    has_vbl_ref = any(e["vbl"] for e in entries)
+    is_full = len(names) >= REQUIRED_REFS or has_vbl_ref
 
     if not is_full:
         priority = bbvl_priority_info(row)
@@ -718,7 +738,7 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
             st.write(f"👥 **Nog niemand toegewezen** (0/{REQUIRED_REFS})")
 
         priority = bbvl_priority_info(m)
-        if priority:
+        if priority and not priority["is_open"]:
             st.info(f"📋 Categorie: {priority['label']} — toewijzing verwacht via BVBL.")
 
         if is_bestuur:
@@ -762,7 +782,10 @@ def make_match_dialog(kalender: pd.DataFrame, volunteers_by_match, player_name, 
         if locked:
             pass  # caption above already covers it — no add-other-name field either
         elif status["is_full"]:
-            st.warning(f"Deze wedstrijd heeft al {REQUIRED_REFS} scheidsrechters — er kan niemand meer bij.")
+            if any(e["vbl"] for e in status["entries"]):
+                st.info("Deze wedstrijd is aangeduid door Basketbal Vlaanderen.")
+            else:
+                st.warning(f"Deze wedstrijd heeft al {REQUIRED_REFS} scheidsrechters — er kan niemand meer bij.")
         else:
             st.divider()
             if is_hierarchy_admin and ref_candidates is not None:

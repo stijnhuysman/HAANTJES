@@ -23,12 +23,12 @@ ROSTER_URL = (
 AGE_LADDER = ["SE", 21, 18, 16, 14, 12, 10]
 
 # Which age tiers a player of a given own tier is allowed to referee.
-# SE can ref everything below except the youngest (10). The youngest (10) is
-# deliberately NOT bumped up to ref SE/21 games — instead given the same target
-# tiers as the "16" rung (14, 12), so a 10-year-old refs games a couple of age
-# groups up instead of adult senior games.
+# SE can ref senior games (other teams) and everything below except the youngest (10).
+# The youngest (10) is deliberately NOT bumped up to ref SE/21 games — instead given
+# the same target tiers as the "16" rung (14, 12), so a 10-year-old refs games a
+# couple of age groups up instead of adult senior games.
 ELIGIBLE_TO_REF = {
-    "SE": [21, 18, 16, 14, 12],
+    "SE": ["SE", 21, 18, 16, 14, 12],
     21: [18, 16, 14, 12],
     18: [16, 14, 12, 10],
     16: [14, 12, 10],
