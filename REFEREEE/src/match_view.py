@@ -536,11 +536,10 @@ def team_ref_proposals(
     calendar_df: pd.DataFrame,
     volunteers_by_match: dict,
     only_first_half: bool = True,
-    max_rank: int = None,
     hide_conflicts: bool = False,
 ) -> list:
-    """Home matches needing club referees, ordered chronologically and ranked
-    hierarchically for the given team (Optie 1 = team closest in age above the match)."""
+    """Home matches needing club referees, ordered chronologically for the given team
+    based on the categories they are eligible to referee."""
     team_tier = roster.parse_age(team_name)
     if team_tier is None:
         return []
@@ -563,16 +562,6 @@ def team_ref_proposals(
             continue
         m_tier = roster.parse_age(m["ownTeamCode"])
         if m_tier not in eligible_tiers:
-            continue
-
-        candidate_tiers = [
-            t for t in roster.AGE_LADDER
-            if t not in OPTIES_EXCLUDED_REF_TIERS and m_tier in roster.eligible_ref_tiers(t)
-        ]
-        candidate_tiers.sort(key=lambda t: -roster.AGE_LADDER.index(t))
-        rank = candidate_tiers.index(team_tier) + 1 if team_tier in candidate_tiers else 99
-
-        if max_rank is not None and rank > max_rank:
             continue
 
         conflicting_match = None
@@ -603,15 +592,13 @@ def team_ref_proposals(
             "Datum & Uur": dt_str,
             "Haantjes ploeg": m["ownTeamCode"],
             "Tegenstander": m["tegenstander"],
-            "Hiërarchie": f"Optie {rank}" + (" (1e keuze)" if rank == 1 else ""),
             "Refs nodig": f"{refs_needed} ref{'s' if refs_needed > 1 else ''}",
             "Eigen match": conflict_info,
-            "rank": rank,
             "conflict": conflicting_match is not None,
             "refs_needed_count": refs_needed,
         })
 
-    proposals.sort(key=lambda x: (x["DT"], x["rank"]))
+    proposals.sort(key=lambda x: x["DT"])
     return proposals
 
 
@@ -633,8 +620,8 @@ def whatsapp_team_proposal_text(
         lines.append("*(Geen openstaande wedstrijden meer voor deze selectie)*")
     else:
         for m in proposals:
-            need = f"{m['refs_needed_count']} ref" if m['refs_needed_count'] == 1 else "2 refs"
-            lines.append(f"• {m['Datum & Uur']} — *{m['Haantjes ploeg']}* ({m['Hiërarchie']} · {need})")
+            extra = " (nog 1 ref)" if m["refs_needed_count"] == 1 else ""
+            lines.append(f"• {m['Datum & Uur']} — *{m['Haantjes ploeg']}*{extra}")
 
     lines.extend([
         "",
