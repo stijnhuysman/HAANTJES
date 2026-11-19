@@ -528,6 +528,126 @@ def options_subcard_html(options) -> str:
     )
 
 
+APP_URL = os.environ.get("APP_URL", "https://clubrefshaantjes.streamlit.app/")
+
+
+def team_ref_proposals(
+    team_name: str,
+    calendar_df: pd.DataFrame,
+    volunteers_by_match: dict,
+    only_first_half: bool = True,
+    max_rank: int = None,
+    hide_conflicts: bool = False,
+) -> list:
+    """Home matches needing club referees, ordered chronologically and ranked
+    hierarchically for the given team (Optie 1 = team closest in age above the match)."""
+    team_tier = roster.parse_age(team_name)
+    if team_tier is None:
+        return []
+    eligible_tiers = roster.eligible_ref_tiers(team_tier)
+    if not eligible_tiers:
+        return []
+
+    matches = calendar_df[
+        (calendar_df["DT"].dt.date >= pd.Timestamp.now().date()) & (calendar_df["isHome"])
+    ].copy()
+    if only_first_half:
+        matches = matches[matches["DT"].dt.year == 2026]
+
+    matches = matches[matches.apply(lambda r: needs_club_refs(r, volunteers_by_match), axis=1)]
+    own_matches = calendar_df[calendar_df["ownTeamCode"] == team_name]
+
+    proposals = []
+    for _, m in matches.iterrows():
+        if m["ownTeamCode"] == team_name:
+            continue
+        m_tier = roster.parse_age(m["ownTeamCode"])
+        if m_tier not in eligible_tiers:
+            continue
+
+        candidate_tiers = [
+            t for t in roster.AGE_LADDER
+            if t not in OPTIES_EXCLUDED_REF_TIERS and m_tier in roster.eligible_ref_tiers(t)
+        ]
+        candidate_tiers.sort(key=lambda t: -roster.AGE_LADDER.index(t))
+        rank = candidate_tiers.index(team_tier) + 1 if team_tier in candidate_tiers else 99
+
+        if max_rank is not None and rank > max_rank:
+            continue
+
+        conflicting_match = None
+        for _, om in own_matches.iterrows():
+            if _conflicts(om, m["DT"]):
+                conflicting_match = om
+                break
+
+        if hide_conflicts and conflicting_match is not None:
+            continue
+
+        if conflicting_match is not None:
+            conflict_info = f"Speelt {conflicting_match['DT'].strftime('%H:%M')} ({'thuis' if conflicting_match['isHome'] else 'uit'})"
+        else:
+            conflict_info = "Vrij"
+
+        entries = assigned_entries(
+            volunteers_by_match, m["wedguid"], m["refFinal1"], m["refFinal2"], m.get("refSource")
+        )
+        refs_needed = REQUIRED_REFS - len(entries)
+
+        dow = _NL_WEEKDAYS_SHORT[m["DT"].weekday()]
+        dt_str = f"{dow} {m['DT'].strftime('%d/%m %H:%M')}"
+
+        proposals.append({
+            "DT": m["DT"],
+            "wedguid": m["wedguid"],
+            "Datum & Uur": dt_str,
+            "Haantjes ploeg": m["ownTeamCode"],
+            "Tegenstander": m["tegenstander"],
+            "Hiërarchie": f"Optie {rank}" + (" (1e keuze)" if rank == 1 else ""),
+            "Refs nodig": f"{refs_needed} ref{'s' if refs_needed > 1 else ''}",
+            "Eigen match": conflict_info,
+            "rank": rank,
+            "conflict": conflicting_match is not None,
+            "refs_needed_count": refs_needed,
+        })
+
+    proposals.sort(key=lambda x: (x["DT"], x["rank"]))
+    return proposals
+
+
+def whatsapp_team_proposal_text(
+    team_name: str,
+    proposals: list,
+    app_url: str = APP_URL,
+    season_period: str = "eerste seizoenshelft",
+) -> str:
+    """WhatsApp-formatted proposal text asking a team's players to sign up for
+    matches where they are suggested as club referees."""
+    lines = [
+        f"Beste ploeg *{team_name}*,",
+        "",
+        f"Voor deze wedstrijden van de {season_period} hebben we nog clubrefs nodig:",
+        "",
+    ]
+    if not proposals:
+        lines.append("*(Geen openstaande wedstrijden meer voor deze selectie)*")
+    else:
+        for m in proposals:
+            need = f"{m['refs_needed_count']} ref" if m['refs_needed_count'] == 1 else "2 refs"
+            lines.append(f"• {m['Datum & Uur']} — *{m['Haantjes ploeg']}* ({m['Hiërarchie']} · {need})")
+
+    lines.extend([
+        "",
+        "Kijk uw agenda na, en schrijf in op de app link, voor 1 of meerdere van de wedstrijden:",
+        f"{app_url}",
+        "",
+        "Bedankt,",
+        "Stijn Huysman",
+        "#noRefNoGame",
+    ])
+    return "\n".join(lines)
+
+
 def ref_count(row, volunteers_by_match) -> int:
     entries = assigned_entries(volunteers_by_match, row["wedguid"], row["refFinal1"], row["refFinal2"], row.get("refSource"))
     if any(e["vbl"] for e in entries):

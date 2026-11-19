@@ -179,7 +179,13 @@ match_dialog = match_view.make_match_dialog(
 
 tab_labels = ["📋 Lijst", "📆 Weekend", "✅ Toewijzingen"]
 if is_admin_user:
-    tab_labels += ["🏠 Thuiswedstrijden", "🏀 Club overzicht", "🧩 Opties", "👥 Spelers per ploeg"]
+    tab_labels += [
+        "🏠 Thuiswedstrijden",
+        "🏀 Club overzicht",
+        "🧩 Opties",
+        "👥 Spelers per ploeg",
+        "📢 Wedstrijden per ploeg",
+    ]
 tabs = st.tabs(tab_labels)
 tab_list, tab_weekend, tab_mine = tabs[:3]
 
@@ -432,3 +438,70 @@ if is_admin_user:
         unknown = sorted({n for n in volunteers["player_name"] if n.strip().casefold() not in known_names}) if not volunteers.empty else []
         if unknown:
             st.caption(f"Ingeschreven maar niet in een ploeg van de ledenlijst: {', '.join(unknown)}")
+
+    with tabs[7]:
+        st.caption(
+            "Thuiswedstrijden die nog clubrefs nodig hebben, gerangschikt volgens de ref-hiërarchie voor de gekozen ploeg · "
+            "genereert een WhatsApp-oproep om rechtstreeks naar de ploeg te sturen"
+        )
+        team_names = list(dict.fromkeys(booking_counts["team"]))
+        ref_team_names = [t for t in team_names if roster.parse_age(t) not in (None, 10, 12)]
+        if not ref_team_names:
+            ref_team_names = team_names
+
+        col_team, col_period, col_rank = st.columns([1.5, 1.5, 1.5])
+        with col_team:
+            picked_proposal_team = st.selectbox("Ploeg", options=ref_team_names, key="proposal_team")
+        with col_period:
+            period_choice = st.radio(
+                "Periode",
+                options=["Eerste seizoenshelft (tot eind dec)", "Volledig seizoen"],
+                horizontal=True,
+                key="proposal_period",
+            )
+        with col_rank:
+            rank_filter_choice = st.selectbox(
+                "Hiërarchie filter",
+                options=["Alle opties (Optie 1, 2, 3+)", "Enkel Optie 1 (1e keuze)", "Optie 1 en 2"],
+                key="proposal_rank_filter",
+            )
+
+        hide_conflicts = st.toggle(
+            "Verberg wedstrijden met overlap (wanneer de ploeg zelf speelt)",
+            value=False,
+            key="proposal_hide_conflicts",
+        )
+
+        only_first_half = period_choice.startswith("Eerste")
+        max_rank = 1 if "Enkel Optie 1" in rank_filter_choice else (2 if "Optie 1 en 2" in rank_filter_choice else None)
+
+        proposals = match_view.team_ref_proposals(
+            picked_proposal_team,
+            calendar_df,
+            volunteers_by_match,
+            only_first_half=only_first_half,
+            max_rank=max_rank,
+            hide_conflicts=hide_conflicts,
+        )
+
+        if not proposals:
+            st.info(f"Geen openstaande wedstrijden gevonden voor {picked_proposal_team} met de gekozen filters.")
+        else:
+            st.caption(f"{len(proposals)} wedstrijd(en) voorgesteld voor {picked_proposal_team}")
+            df_display = pd.DataFrame(proposals)[
+                ["Datum & Uur", "Haantjes ploeg", "Tegenstander", "Hiërarchie", "Refs nodig", "Eigen match"]
+            ]
+            st.dataframe(df_display, hide_index=True, use_container_width=True)
+
+            whatsapp_proposal = match_view.whatsapp_team_proposal_text(
+                picked_proposal_team,
+                proposals,
+                season_period="eerste seizoenshelft" if only_first_half else "komende wedstrijden",
+            )
+            st.subheader("💬 WhatsApp voorstel")
+            st.code(whatsapp_proposal, language=None)
+            st.link_button(
+                "📲 Stuur via WhatsApp",
+                f"https://wa.me/?text={quote(whatsapp_proposal)}",
+                use_container_width=True,
+            )
